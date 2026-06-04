@@ -13,14 +13,13 @@ interface Props {
 /**
  * Host de Mythik para la pantalla data-driven (historial).
  *
- * El renderer consume el AppSpec JSON (historialSpec). La autenticación NO va
- * dentro del spec: los docs nativos de Mythik indican pasar el transporte de
- * credenciales por el `fetcher` del host y mantener el token fuera del spec.
- * Aquí el fetcher inyecta `Authorization: Bearer <idToken>` y `urlResolver`
- * convierte rutas relativas (/api/...) en absolutas contra el backend .NET.
- *
- * La demo actual se alimenta de datos sembrados en el spec, así que el fetcher
- * no se ejercita todavía; queda listo para cuando el spec haga fetch real.
+ * El renderer consume el AppSpec JSON (historialSpec), que hace un `fetch` GET
+ * real a /api/comidas/historial. La autenticación NO va dentro del spec: los
+ * docs nativos de Mythik indican pasar el transporte de credenciales por el
+ * `fetcher` del host. Aquí el fetcher inyecta `Authorization: Bearer <idToken>`
+ * y `urlResolver` convierte la ruta relativa (/api/...) en absoluta contra el
+ * backend .NET. Sin sesión activa el backend responde 401 y el spec muestra su
+ * estado de error.
  */
 export default function HistoryScreen({ auth }: Props) {
   const fetcher = useMemo(

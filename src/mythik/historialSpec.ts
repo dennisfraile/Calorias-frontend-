@@ -1,40 +1,37 @@
-import type { Spec, Expression } from 'mythik';
+import type { Spec } from 'mythik';
+import { HISTORIAL_PATH } from '../config';
 
 /**
  * Pantalla de HISTORIAL como AppSpec JSON de Mythik (modelo JSON-native).
  *
  * Props verificados contra los docs locales empaquetados:
- *   node_modules/mythik/docs/consumer/ai-context.md  (estructura, expresiones, derive)
+ *   node_modules/mythik/docs/consumer/ai-context.md  (estructura, expresiones, derive, fetch)
  *   node_modules/mythik/docs/consumer/ai-context-primitives.md  (props de cada primitivo)
  *
  * Solo se usan primitivos SOPORTADOS por el renderer nativo (matriz de
- * mythik-react-native README): stack, box, text, list, divider. Se evita
- * `table` y los charts (son "native milestone primitives", no renderizan en RN),
- * y se evita `$token` porque este proyecto no define tokens (los docs dicen:
- * "If no tokens defined, use direct CSS values").
+ * mythik-react-native README): stack, box, text, list. Se evita `table` y los
+ * charts (son "native milestone primitives", no renderizan en RN), y se evita
+ * `$token` porque este proyecto no define tokens ("If no tokens defined, use
+ * direct CSS values").
  *
- * Los datos se SIEMBRAN en estado vía initialActions (demo autocontenida que
- * funciona sin backend). Para datos reales, sustituir el setState de /comidas
- * por un `fetch` (o un `dataSources`) contra HISTORIAL_URL — ver HistoryScreen.
+ * DATOS REALES: `initialActions` hace un `fetch` GET a HISTORIAL_PATH y escribe
+ * la respuesta en /comidas. La URL es relativa: el `urlResolver` del host la
+ * resuelve contra el backend y el `fetcher` del host inyecta el Bearer token
+ * (ver HistoryScreen.tsx). El `fetch` gestiona /ui/loading y, vía errorTarget,
+ * /ui/loadErrors/comidas. La auth NO vive dentro del spec.
  */
-
-const COMIDAS_DEMO = [
-  { id: '1', nombre: 'Ensalada César con pollo', calorias: 420, proteinas: 35, carbohidratos: 18, grasas: 22, hora: '08:30' },
-  { id: '2', nombre: 'Pasta boloñesa', calorias: 650, proteinas: 28, carbohidratos: 80, grasas: 21, hora: '13:15' },
-  { id: '3', nombre: 'Yogur griego con frutos rojos', calorias: 180, proteinas: 15, carbohidratos: 20, grasas: 5, hora: '17:00' },
-  { id: '4', nombre: 'Salmón al horno con verduras', calorias: 510, proteinas: 40, carbohidratos: 22, grasas: 28, hora: '20:45' },
-];
-
 export const historialSpec: Spec = {
   root: 'screen',
 
-  // Siembra de datos (demo). Reemplazable por un fetch real al backend.
   initialActions: [
-    // El tipo Expression no enumera "array literal de objetos" (que el runtime sí
-    // acepta como valor JSON); cast puntual sobre el dato sembrado.
     {
-      action: 'setState',
-      params: { statePath: '/comidas', value: COMIDAS_DEMO as unknown as Expression },
+      action: 'fetch',
+      params: {
+        url: HISTORIAL_PATH, // relativa; la resuelve urlResolver del host
+        method: 'GET',
+        target: '/comidas',
+        errorTarget: '/ui/loadErrors/comidas',
+      },
     },
   ],
 
@@ -50,7 +47,7 @@ export const historialSpec: Spec = {
       type: 'stack',
       props: { direction: 'vertical', gap: 16 },
       style: { padding: 24, backgroundColor: '#0B1120' },
-      children: ['titulo', 'subtitulo', 'resumen', 'lista', 'vacio'],
+      children: ['titulo', 'subtitulo', 'error', 'cargando', 'resumen', 'lista', 'vacio'],
     },
 
     titulo: {
@@ -62,6 +59,27 @@ export const historialSpec: Spec = {
       type: 'text',
       props: { content: 'Pantalla data-driven renderizada desde un AppSpec JSON de Mythik.', variant: 'caption' },
       style: { color: '#94A3B8', fontSize: 13 },
+    },
+
+    // Estado de error de carga (lo escribe el fetch en errorTarget).
+    error: {
+      type: 'text',
+      props: { content: 'No se pudo cargar el historial. ¿Backend arriba y sesión iniciada?', variant: 'body' },
+      style: { color: '#F87171', fontSize: 14, paddingVertical: 12 },
+      visible: { $state: '/ui/loadErrors/comidas' },
+    },
+
+    // Estado de carga (mientras el fetch está en vuelo y aún no hay datos).
+    cargando: {
+      type: 'text',
+      props: { content: 'Cargando…', variant: 'body' },
+      style: { color: '#94A3B8', fontSize: 14, paddingVertical: 12 },
+      visible: {
+        $and: [
+          { $state: '/ui/loading' },
+          { $not: { $array: 'count', source: { $state: '/comidas' } } },
+        ],
+      },
     },
 
     // Tarjeta resumen: lee los valores derivados vía $template (${/ruta}).
@@ -80,7 +98,7 @@ export const historialSpec: Spec = {
     },
     'resumen-kcal': {
       type: 'text',
-      props: { content: { $template: '${/resumen/kcal} kcal hoy' } },
+      props: { content: { $template: '${/resumen/kcal} kcal' } },
       style: { color: '#22C55E', fontSize: 28, fontWeight: '800' },
     },
     'resumen-detalle': {
@@ -150,12 +168,18 @@ export const historialSpec: Spec = {
       style: { color: '#38BDF8', fontSize: 15, fontWeight: '700' },
     },
 
-    // Estado vacío: visible cuando no hay comidas (count 0 es falsy → $not = true).
+    // Estado vacío: sin carga, sin error y sin comidas.
     vacio: {
       type: 'text',
       props: { content: 'Aún no hay comidas registradas.', variant: 'body' },
       style: { color: '#94A3B8', fontSize: 14, paddingVertical: 24 },
-      visible: { $not: { $array: 'count', source: { $state: '/comidas' } } },
+      visible: {
+        $and: [
+          { $not: { $state: '/ui/loading' } },
+          { $not: { $array: 'count', source: { $state: '/comidas' } } },
+          { $not: { $state: '/ui/loadErrors/comidas' } },
+        ],
+      },
     },
   },
 };

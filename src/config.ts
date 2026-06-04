@@ -9,12 +9,11 @@ export const API_BASE_URL =
 /** Endpoint multipart del backend que analiza la foto (campo "foto"). Requiere Bearer idToken. */
 export const ANALIZAR_URL = `${API_BASE_URL}/api/comidas/analizar`;
 
-/**
- * Endpoint GET de historial. El backend aún no lo expone (solo POST /analizar);
- * se deja definido para cuando exista. La pantalla Mythik funciona con datos
- * sembrados mientras tanto (ver src/mythik/historialSpec.ts).
- */
-export const HISTORIAL_URL = `${API_BASE_URL}/api/comidas/historial`;
+/** Ruta RELATIVA del historial: el spec de Mythik la usa y el urlResolver del host la vuelve absoluta. */
+export const HISTORIAL_PATH = '/api/comidas/historial';
+
+/** Variante absoluta por si se necesita fuera del renderer de Mythik. */
+export const HISTORIAL_URL = `${API_BASE_URL}${HISTORIAL_PATH}`;
 
 export const GOOGLE_CLIENT_IDS = {
   webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
