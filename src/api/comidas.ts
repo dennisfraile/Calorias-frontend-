@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { ANALIZAR_URL } from '../config';
 
 /** Un alimento detectado dentro de una comida (forma aproximada del DTO del backend). */
@@ -36,8 +37,10 @@ export class ApiError extends Error {
  * Sube una foto al backend (.NET) como multipart/form-data, campo "foto",
  * con el ID Token de Google en el header Authorization.
  *
- * En React Native NO se construye un Blob: se pasa al FormData un objeto
- * { uri, name, type } y el runtime arma el multipart con el archivo local.
+ * Web y nativo difieren: en RN se pasa al FormData un objeto { uri, name, type }
+ * y el runtime arma el multipart; en web hay que adjuntar un Blob/File real
+ * (un objeto plano se serializaría como "[object Object]" y el backend no
+ * recibiría archivo → 400 "The foto field is required").
  */
 export async function analizarFoto(
   fotoUri: string,
@@ -47,12 +50,19 @@ export async function analizarFoto(
   const tipo = inferirMime(nombre);
 
   const form = new FormData();
-  // El cast es necesario: el tipo DOM de FormData no contempla la forma RN { uri, name, type }.
-  form.append('foto', {
-    uri: fotoUri,
-    name: nombre,
-    type: tipo,
-  } as unknown as Blob);
+  if (Platform.OS === 'web') {
+    // En web, el URI de expo-image-picker es un blob:/data: URL; lo resolvemos
+    // a un Blob real para que FormData genere un multipart con archivo.
+    const blob = await (await fetch(fotoUri)).blob();
+    form.append('foto', blob, nombre);
+  } else {
+    // El cast es necesario: el tipo DOM de FormData no contempla la forma RN { uri, name, type }.
+    form.append('foto', {
+      uri: fotoUri,
+      name: nombre,
+      type: tipo,
+    } as unknown as Blob);
+  }
 
   let res: Response;
   try {
