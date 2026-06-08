@@ -48,8 +48,8 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.7 },
   bubble: {
     position: 'absolute',
-    left: 26,
-    top: -6,
+    bottom: 24,
+    left: -4,
     width: 230,
     backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
@@ -65,15 +65,15 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 12,
   },
-  // Flecha apuntando a la izquierda (hacia el "?"), pegada al borde izquierdo de la burbuja.
+  // Flecha apuntando hacia abajo (al "?"), pegada al borde inferior de la burbuja.
   arrow: {
     position: 'absolute',
-    left: -5,
-    top: 10,
+    bottom: -5,
+    left: 8,
     width: 10,
     height: 10,
     backgroundColor: colors.surfaceAlt,
-    borderLeftWidth: 1,
+    borderRightWidth: 1,
     borderBottomWidth: 1,
     borderColor: colors.border,
     transform: [{ rotate: '45deg' }],
