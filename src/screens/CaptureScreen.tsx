@@ -269,7 +269,6 @@ const styles = StyleSheet.create({
   tipoChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   tipoChipText: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
   tipoChipTextActive: { color: colors.bg },
-  
   actionBtn: {
     flex: 1,
     backgroundColor: colors.surfaceAlt,
