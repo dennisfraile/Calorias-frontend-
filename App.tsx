@@ -63,6 +63,21 @@ function AppContent() {
                   <Text style={styles.brand}>Calorías</Text>
                 </View>
 
+                <View style={styles.navTabs}>
+                  <TabButton
+                    label="Captura"
+                    icon="camera"
+                    active={tab === 'captura'}
+                    onPress={() => setTab('captura')}
+                  />
+                  <TabButton
+                    label="Historial"
+                    icon="history"
+                    active={tab === 'historial'}
+                    onPress={() => setTab('historial')}
+                  />
+                </View>
+
                 <View style={styles.headerRight}>
                   <Pressable
                     onPress={toggle}
@@ -84,21 +99,6 @@ function AppContent() {
                     <GoogleSignInButton auth={auth} />
                   )}
                 </View>
-              </View>
-
-              <View style={styles.tabBar}>
-                <TabButton
-                  label="Captura"
-                  icon="camera"
-                  active={tab === 'captura'}
-                  onPress={() => setTab('captura')}
-                />
-                <TabButton
-                  label="Historial"
-                  icon="history"
-                  active={tab === 'historial'}
-                  onPress={() => setTab('historial')}
-                />
               </View>
 
               <View style={styles.body}>
@@ -168,22 +168,14 @@ const makeStyles = (colors: Palette) =>
       borderWidth: 1,
       borderColor: colors.border,
     },
-    tabBar: {
-      flexDirection: 'row',
-      gap: spacing.sm,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-      backgroundColor: colors.surface,
-    },
+    navTabs: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: spacing.sm },
     tab: {
-      flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       gap: spacing.xs,
-      paddingVertical: spacing.sm,
+      paddingVertical: spacing.xs,
+      paddingHorizontal: spacing.md,
       borderRadius: radius.md,
     },
     tabActive: { backgroundColor: colors.surfaceAlt },
