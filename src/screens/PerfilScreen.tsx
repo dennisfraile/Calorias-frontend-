@@ -11,6 +11,8 @@ import {
 import type { GoogleAuthState } from '../auth/useGoogleAuth';
 import { ApiError } from '../api/comidas';
 import { getPerfil, putPerfil, type Perfil, type PerfilInput } from '../api/perfil';
+import DateField from '../components/DateField';
+import HelpTip from '../components/HelpTip';
 import { colors, radius, spacing } from '../theme';
 
 const SEXOS = ['Masculino', 'Femenino'] as const;
@@ -138,7 +140,9 @@ export default function PerfilScreen({
           <Text style={styles.back}>‹ Volver</Text>
         </Pressable>
         <Text style={styles.title}>Perfil</Text>
-        <View style={{ width: 60 }} />
+        <Pressable onPress={auth.signOut} hitSlop={10}>
+          <Text style={styles.salir}>Salir</Text>
+        </Pressable>
       </View>
 
       {perfil && !perfil.perfilCompleto && (
@@ -168,31 +172,50 @@ export default function PerfilScreen({
         </View>
       )}
 
-      <Campo label="Sexo">
+      <Campo
+        label="Sexo"
+        help="Se usa en la fórmula Mifflin-St Jeor: el cálculo del metabolismo basal difiere entre hombres y mujeres."
+      >
         <Chips options={SEXOS} value={sexo} onChange={setSexo} />
       </Campo>
 
-      <Campo label="Fecha de nacimiento (YYYY-MM-DD)">
-        <Input value={fechaNacimiento} onChangeText={setFechaNacimiento} placeholder="1995-04-10" />
+      <Campo
+        label="Fecha de nacimiento"
+        help="Tu edad ajusta el cálculo: el metabolismo basal disminuye con los años."
+      >
+        <DateField
+          value={fechaNacimiento.trim() === '' ? null : fechaNacimiento}
+          onChange={setFechaNacimiento}
+          placeholder="Selecciona tu fecha"
+        />
       </Campo>
 
-      <Campo label="Altura (cm)">
+      <Campo label="Altura (cm)" help="En centímetros. Entra en la fórmula del gasto energético.">
         <Input value={alturaCm} onChangeText={setAlturaCm} keyboardType="numeric" placeholder="178" />
       </Campo>
 
-      <Campo label="Peso (kg)">
+      <Campo label="Peso (kg)" help="En kilogramos. Es el factor de mayor peso en tu metabolismo basal.">
         <Input value={pesoKg} onChangeText={setPesoKg} keyboardType="numeric" placeholder="80" />
       </Campo>
 
-      <Campo label="Nivel de actividad">
+      <Campo
+        label="Nivel de actividad"
+        help="Cuánto te mueves al día. Multiplica tu metabolismo basal para estimar el gasto total (TDEE)."
+      >
         <Chips options={NIVELES} value={nivelActividad} onChange={setNivelActividad} />
       </Campo>
 
-      <Campo label="Objetivo">
+      <Campo
+        label="Objetivo"
+        help="Perder, mantener o ganar peso. Ajusta tus calorías por encima o por debajo del gasto."
+      >
         <Chips options={OBJETIVOS} value={objetivo} onChange={setObjetivo} />
       </Campo>
 
-      <Campo label="Ritmo (kg/semana)">
+      <Campo
+        label="Ritmo (kg/semana)"
+        help="Kg por semana que quieres perder o ganar. 0.5 es un ritmo saludable. Se ignora si eliges Mantener."
+      >
         <Input
           value={ritmoKgSemana}
           onChangeText={setRitmoKgSemana}
@@ -201,16 +224,24 @@ export default function PerfilScreen({
         />
       </Campo>
 
-      <Campo label={`Split de macros (% — suman ${pctSuma})`}>
+      <Campo
+        label="Split de macros (%)"
+        help="Cómo repartir tus calorías entre proteína, carbohidratos y grasa. Deben sumar 100%."
+      >
         <View style={styles.pctRow}>
           <Input value={protPct} onChangeText={setProtPct} keyboardType="numeric" style={styles.pctInput} />
           <Input value={carbPct} onChangeText={setCarbPct} keyboardType="numeric" style={styles.pctInput} />
           <Input value={grasaPct} onChangeText={setGrasaPct} keyboardType="numeric" style={styles.pctInput} />
         </View>
-        <Text style={styles.hint}>Proteína · Carbos · Grasas</Text>
+        <Text style={[styles.hint, pctSuma !== 100 && styles.hintWarn]}>
+          Proteína · Carbos · Grasas {pctSuma !== 100 ? `— suman ${pctSuma}, deben sumar 100` : '✓ suman 100'}
+        </Text>
       </Campo>
 
-      <Campo label="Override de calorías (opcional)">
+      <Campo
+        label="Override de calorías (opcional)"
+        help="Si prefieres fijar tu meta manualmente, escribe las kcal aquí y mandará sobre el cálculo."
+      >
         <Input value={override} onChangeText={setOverride} keyboardType="numeric" placeholder="manual" />
       </Campo>
 
@@ -225,10 +256,21 @@ export default function PerfilScreen({
   );
 }
 
-function Campo({ label, children }: { label: string; children: React.ReactNode }) {
+function Campo({
+  label,
+  help,
+  children,
+}: {
+  label: string;
+  help?: string;
+  children: React.ReactNode;
+}) {
   return (
     <View style={styles.campo}>
-      <Text style={styles.label}>{label}</Text>
+      <View style={styles.labelRow}>
+        <Text style={styles.label}>{label}</Text>
+        {help ? <HelpTip text={help} /> : null}
+      </View>
       {children}
     </View>
   );
@@ -278,6 +320,7 @@ const styles = StyleSheet.create({
   centro: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   back: { color: colors.accent, fontSize: 16, fontWeight: '600', width: 60 },
+  salir: { color: colors.danger, fontSize: 14, fontWeight: '600', width: 60, textAlign: 'right' },
   title: { color: colors.text, fontSize: 22, fontWeight: '800' },
   aviso: {
     backgroundColor: colors.surfaceAlt,
@@ -299,8 +342,10 @@ const styles = StyleSheet.create({
   metaKcal: { color: colors.primary, fontSize: 28, fontWeight: '800' },
   metaSub: { color: colors.textMuted, fontSize: 13 },
   campo: { gap: spacing.xs },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   label: { color: colors.text, fontSize: 14, fontWeight: '600' },
   hint: { color: colors.textMuted, fontSize: 12 },
+  hintWarn: { color: colors.warning },
   input: {
     backgroundColor: colors.surface,
     borderColor: colors.border,

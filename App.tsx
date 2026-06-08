@@ -6,6 +6,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import CaptureScreen from './src/screens/CaptureScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import PerfilScreen from './src/screens/PerfilScreen';
+import GoogleSignInButton from './src/components/GoogleSignInButton';
 import { useGoogleAuth } from './src/auth/useGoogleAuth';
 import { colors, radius, spacing } from './src/theme';
 
@@ -24,23 +25,27 @@ export default function App() {
         <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
           <StatusBar style="light" />
 
-          {screen === 'perfil' ? (
+          {screen === 'perfil' && auth.idToken ? (
             <PerfilScreen auth={auth} onClose={() => setScreen('main')} />
           ) : (
             <>
               <View style={styles.header}>
                 <Text style={styles.brand}>Calorías</Text>
-                <Pressable
-                  onPress={() => setScreen('perfil')}
-                  style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}
-                  accessibilityLabel="Abrir perfil"
-                >
-                  {auth.user?.picture ? (
-                    <Image source={{ uri: auth.user.picture }} style={styles.avatarImg} />
-                  ) : (
-                    <Text style={styles.avatarText}>{inicial}</Text>
-                  )}
-                </Pressable>
+                {auth.idToken ? (
+                  <Pressable
+                    onPress={() => setScreen('perfil')}
+                    style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}
+                    accessibilityLabel="Abrir perfil"
+                  >
+                    {auth.user?.picture ? (
+                      <Image source={{ uri: auth.user.picture }} style={styles.avatarImg} />
+                    ) : (
+                      <Text style={styles.avatarText}>{inicial}</Text>
+                    )}
+                  </Pressable>
+                ) : (
+                  <GoogleSignInButton auth={auth} />
+                )}
               </View>
 
               <View style={styles.body}>

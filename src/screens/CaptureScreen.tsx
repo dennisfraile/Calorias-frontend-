@@ -84,9 +84,6 @@ export default function CaptureScreen({ auth }: Props) {
         Toma o elige una foto de tu plato y estima sus calorías y macros.
       </Text>
 
-      <AuthBanner auth={auth} />
-
-
       <View style={styles.tipoRow}>
         {(['Desayuno', 'Almuerzo', 'Cena', 'Snack'] as TipoComida[]).map((t) => (
           <Pressable
@@ -140,35 +137,6 @@ export default function CaptureScreen({ auth }: Props) {
 
       {resultado && <ResultadoCard registro={resultado} />}
     </ScrollView>
-  );
-}
-
-function AuthBanner({ auth }: Props) {
-  if (auth.idToken) {
-    return (
-      <View style={styles.authBanner}>
-        <Text style={styles.authText}>
-          Sesión activa{auth.user?.name ? `: ${auth.user.name}` : ''}
-        </Text>
-        <Pressable onPress={auth.signOut} hitSlop={8}>
-          <Text style={styles.authLink}>Salir</Text>
-        </Pressable>
-      </View>
-    );
-  }
-  return (
-    <View style={styles.authBanner}>
-      <Text style={styles.authText}>
-        {auth.configured
-          ? 'Inicia sesión para enviar fotos al backend.'
-          : 'Configura los Client IDs de Google en .env.'}
-      </Text>
-      <Pressable onPress={auth.signIn} hitSlop={8} disabled={auth.inProgress}>
-        <Text style={[styles.authLink, auth.inProgress && styles.dim]}>
-          {auth.inProgress ? 'Abriendo…' : 'Entrar con Google'}
-        </Text>
-      </Pressable>
-    </View>
   );
 }
 
