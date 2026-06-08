@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import CaptureScreen from './src/screens/CaptureScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
+import DashboardScreen from './src/screens/DashboardScreen';
 import PerfilScreen from './src/screens/PerfilScreen';
 import GoogleSignInButton from './src/components/GoogleSignInButton';
 import Avatar from './src/components/Avatar';
@@ -13,7 +14,7 @@ import { useGoogleAuth } from './src/auth/useGoogleAuth';
 import { ThemeProvider, useTheme } from './src/theme-context';
 import { radius, spacing, type Palette } from './src/theme';
 
-type Tab = 'captura' | 'historial';
+type Tab = 'captura' | 'historial' | 'dashboard';
 
 export default function App() {
   return (
@@ -76,6 +77,12 @@ function AppContent() {
                     active={tab === 'historial'}
                     onPress={() => setTab('historial')}
                   />
+                  <TabButton
+                    label="Dashboard"
+                    icon="barChart"
+                    active={tab === 'dashboard'}
+                    onPress={() => setTab('dashboard')}
+                  />
                 </View>
 
                 <View style={styles.headerRight}>
@@ -104,8 +111,10 @@ function AppContent() {
               <View style={styles.body}>
                 {tab === 'captura' ? (
                   <CaptureScreen auth={auth} />
-                ) : (
+                ) : tab === 'historial' ? (
                   <HistoryScreen auth={auth} />
+                ) : (
+                  <DashboardScreen auth={auth} />
                 )}
               </View>
             </>
