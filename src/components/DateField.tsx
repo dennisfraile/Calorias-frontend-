@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
-import { colors, radius, spacing } from '../theme';
+import { radius, spacing, type Palette } from '../theme';
+import { useTheme } from '../theme-context';
 
 const MESES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -26,6 +27,7 @@ function parseISO(s: string | null): YMD | null {
 }
 
 function CalendarGlyph({ size = 18 }: { size?: number }) {
+  const { colors } = useTheme();
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Rect x="3" y="4.5" width="18" height="16" rx="2.5" stroke={colors.textMuted} strokeWidth="1.6" />
@@ -35,6 +37,7 @@ function CalendarGlyph({ size = 18 }: { size?: number }) {
 }
 
 function Chevron({ dir }: { dir: 'left' | 'right' }) {
+  const { colors } = useTheme();
   const d = dir === 'left' ? 'M14 6l-6 6 6 6' : 'M10 6l6 6-6 6';
   return (
     <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
@@ -56,6 +59,8 @@ export default function DateField({
   onChange: (v: string) => void;
   placeholder?: string;
 }) {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const [open, setOpen] = useState(false);
   const parsed = parseISO(value);
   const display = parsed ? `${parsed.d} ${MESES_CORTO[parsed.m]} ${parsed.y}` : placeholder;
@@ -94,6 +99,8 @@ function CalendarBody({
   selected: YMD | null;
   onPick: (y: number, m: number, d: number) => void;
 }) {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const today = new Date();
   const todayY = today.getFullYear();
   const todayM = today.getMonth();
@@ -230,7 +237,7 @@ function CalendarBody({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   field: {
     flexDirection: 'row',
     alignItems: 'center',

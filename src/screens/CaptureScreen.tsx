@@ -12,7 +12,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { analizarFoto, ApiError, type RegistroComida, type TipoComida } from '../api/comidas';
 import type { GoogleAuthState } from '../auth/useGoogleAuth';
 import Icon, { type IconName } from '../components/Icon';
-import { colors, radius, spacing } from '../theme';
+import { radius, spacing, type Palette } from '../theme';
+import { useTheme } from '../theme-context';
 
 interface Props {
   auth: GoogleAuthState;
@@ -24,6 +25,8 @@ interface Props {
  * y el ID Token de Google, y muestra los macros estimados.
  */
 export default function CaptureScreen({ auth }: Props) {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const [fotoUri, setFotoUri] = useState<string | null>(null);
   const [analizando, setAnalizando] = useState(false);
   const [resultado, setResultado] = useState<RegistroComida | null>(null);
@@ -145,6 +148,8 @@ export default function CaptureScreen({ auth }: Props) {
 }
 
 function ResultadoCard({ registro }: { registro: RegistroComida }) {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const detalles = registro.detalles ?? [];
   return (
     <View style={styles.card}>
@@ -172,6 +177,8 @@ function ResultadoCard({ registro }: { registro: RegistroComida }) {
 }
 
 function Macro({ label, value, suffix }: { label: string; value?: number; suffix?: string }) {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   return (
     <View style={styles.macro}>
       <Text style={styles.macroValue}>
@@ -194,6 +201,8 @@ function ActionButton({
   onPress: () => void;
   variant?: 'primary' | 'secondary';
 }) {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const color = variant === 'secondary' ? colors.textMuted : colors.text;
   return (
     <Pressable
@@ -214,7 +223,7 @@ function ActionButton({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   content: { padding: spacing.lg, paddingBottom: spacing.xl, gap: spacing.md },
   title: { color: colors.text, fontSize: 26, fontWeight: '700' },
   subtitle: { color: colors.textMuted, fontSize: 14, marginTop: -spacing.xs },

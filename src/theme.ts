@@ -1,5 +1,20 @@
-/** Paleta y tokens visuales compartidos entre las pantallas RN clásicas. */
-export const colors = {
+/** Paleta y tokens visuales. Hay dos paletas (oscura/clara); el tema activo lo da useTheme. */
+
+export type Palette = {
+  bg: string;
+  surface: string;
+  surfaceAlt: string;
+  border: string;
+  primary: string;
+  primaryDark: string;
+  text: string;
+  textMuted: string;
+  danger: string;
+  warning: string;
+  accent: string;
+};
+
+export const darkColors: Palette = {
   bg: '#0B1120',
   surface: '#111A2E',
   surfaceAlt: '#1B2740',
@@ -11,7 +26,21 @@ export const colors = {
   danger: '#F87171',
   warning: '#FBBF24',
   accent: '#38BDF8',
-} as const;
+};
+
+export const lightColors: Palette = {
+  bg: '#F4F6FB',
+  surface: '#FFFFFF',
+  surfaceAlt: '#EAEFF7',
+  border: '#D6DEEB',
+  primary: '#16A34A',
+  primaryDark: '#15803D',
+  text: '#0F172A',
+  textMuted: '#566174',
+  danger: '#DC2626',
+  warning: '#B45309',
+  accent: '#0284C7',
+};
 
 export const radius = {
   sm: 8,

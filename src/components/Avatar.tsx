@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { colors } from '../theme';
+import { type Palette } from '../theme';
+import { useTheme } from '../theme-context';
 
 /**
  * Avatar circular: muestra la foto de Google; si falla la carga (p. ej. la
@@ -16,6 +17,8 @@ export default function Avatar({
   name?: string | null;
   size?: number;
 }) {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const [falló, setFalló] = useState(false);
   const inicial = (name ?? '?').trim().slice(0, 1).toUpperCase() || '?';
   const mostrarFoto = !!picture && !falló;
@@ -36,7 +39,7 @@ export default function Avatar({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   box: {
     backgroundColor: colors.surfaceAlt,
     borderWidth: 1,

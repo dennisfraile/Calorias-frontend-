@@ -15,7 +15,8 @@ import { getPerfil, putPerfil, type Perfil, type PerfilInput } from '../api/perf
 import DateField from '../components/DateField';
 import HelpTip from '../components/HelpTip';
 import Icon from '../components/Icon';
-import { colors, radius, spacing } from '../theme';
+import { radius, spacing, type Palette } from '../theme';
+import { useTheme } from '../theme-context';
 
 const SEXOS = ['Masculino', 'Femenino'] as const;
 const NIVELES = ['Sedentario', 'Ligero', 'Moderado', 'Activo', 'MuyActivo'] as const;
@@ -36,6 +37,8 @@ export default function PerfilScreen({
   auth: GoogleAuthState;
   onClose: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
@@ -313,6 +316,8 @@ export default function PerfilScreen({
 }
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>{title}</Text>
@@ -330,6 +335,8 @@ function Campo({
   help?: string;
   children: React.ReactNode;
 }) {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   return (
     <View style={styles.campo}>
       <View style={styles.labelRow}>
@@ -342,6 +349,8 @@ function Campo({
 }
 
 function Input({ style, ...props }: React.ComponentProps<typeof TextInput>) {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   return (
     <TextInput
       placeholderTextColor={colors.textMuted}
@@ -360,6 +369,8 @@ function Chips({
   value: string | null;
   onChange: (v: string) => void;
 }) {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   return (
     <View style={styles.chipRow}>
       {options.map((o) => (
@@ -379,7 +390,7 @@ function Chips({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   scroll: { padding: spacing.md, paddingBottom: spacing.xl },
   container: { width: '100%', maxWidth: 760, alignSelf: 'center', gap: spacing.md },

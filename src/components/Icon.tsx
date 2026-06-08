@@ -1,5 +1,4 @@
 import Svg, { Circle, Line, Path, Polygon, Polyline, Rect } from 'react-native-svg';
-import { colors } from '../theme';
 
 export type IconName =
   | 'camera'
@@ -11,7 +10,10 @@ export type IconName =
   | 'logout'
   | 'chevronLeft'
   | 'barChart'
-  | 'user';
+  | 'user'
+  | 'sun'
+  | 'moon'
+  | 'flame';
 
 /**
  * Íconos de línea propios (react-native-svg), sin dependencias externas.
@@ -20,7 +22,7 @@ export type IconName =
 export default function Icon({
   name,
   size = 18,
-  color = colors.text,
+  color = '#94A3B8',
 }: {
   name: IconName;
   size?: number;
@@ -98,6 +100,29 @@ export default function Icon({
           <Path {...p} d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
           <Circle {...p} cx="12" cy="7" r="4" />
         </>,
+      );
+    case 'sun':
+      return svg(
+        <>
+          <Circle {...p} cx="12" cy="12" r="5" />
+          <Line {...p} x1="12" y1="1" x2="12" y2="3" />
+          <Line {...p} x1="12" y1="21" x2="12" y2="23" />
+          <Line {...p} x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+          <Line {...p} x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <Line {...p} x1="1" y1="12" x2="3" y2="12" />
+          <Line {...p} x1="21" y1="12" x2="23" y2="12" />
+          <Line {...p} x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+          <Line {...p} x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+        </>,
+      );
+    case 'moon':
+      return svg(<Path {...p} d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />);
+    case 'flame':
+      return svg(
+        <Path
+          {...p}
+          d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"
+        />,
       );
     default:
       return null;

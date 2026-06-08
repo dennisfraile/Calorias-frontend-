@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radius, spacing } from '../theme';
+import { radius, spacing, type Palette } from '../theme';
+import { useTheme } from '../theme-context';
 
 /**
  * Botón "?" que despliega una burbuja flotante con ayuda contextual.
@@ -8,6 +9,8 @@ import { colors, radius, spacing } from '../theme';
  * y se abre hacia abajo/izquierda para no salirse por el borde derecho.
  */
 export default function HelpTip({ text }: { text: string }) {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const [open, setOpen] = useState(false);
   return (
     <View style={styles.wrap}>
@@ -30,7 +33,7 @@ export default function HelpTip({ text }: { text: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: Palette) => StyleSheet.create({
   wrap: { position: 'relative' },
   btn: {
     width: 18,
