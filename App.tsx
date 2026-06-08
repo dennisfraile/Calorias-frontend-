@@ -86,14 +86,6 @@ function AppContent() {
                 </View>
               </View>
 
-              <View style={styles.body}>
-                {tab === 'captura' ? (
-                  <CaptureScreen auth={auth} />
-                ) : (
-                  <HistoryScreen auth={auth} />
-                )}
-              </View>
-
               <View style={styles.tabBar}>
                 <TabButton
                   label="Captura"
@@ -107,6 +99,14 @@ function AppContent() {
                   active={tab === 'historial'}
                   onPress={() => setTab('historial')}
                 />
+              </View>
+
+              <View style={styles.body}>
+                {tab === 'captura' ? (
+                  <CaptureScreen auth={auth} />
+                ) : (
+                  <HistoryScreen auth={auth} />
+                )}
               </View>
             </>
           )}
@@ -173,8 +173,8 @@ const makeStyles = (colors: Palette) =>
       gap: spacing.sm,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
       backgroundColor: colors.surface,
     },
     tab: {
