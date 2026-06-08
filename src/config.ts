@@ -9,6 +9,9 @@ export const API_BASE_URL =
 /** Endpoint multipart del backend que analiza la foto (campo "foto"). Requiere Bearer idToken. */
 export const ANALIZAR_URL = `${API_BASE_URL}/api/comidas/analizar`;
 
+/** Endpoint del perfil del usuario (GET/PUT). Requiere Bearer idToken. */
+export const PERFIL_URL = `${API_BASE_URL}/api/perfil`;
+
 /** Ruta RELATIVA del historial: el spec de Mythik la usa y el urlResolver del host la vuelve absoluta. */
 export const HISTORIAL_PATH = '/api/comidas/historial';
 
