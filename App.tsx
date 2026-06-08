@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -7,6 +7,7 @@ import CaptureScreen from './src/screens/CaptureScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import PerfilScreen from './src/screens/PerfilScreen';
 import GoogleSignInButton from './src/components/GoogleSignInButton';
+import Avatar from './src/components/Avatar';
 import { useGoogleAuth } from './src/auth/useGoogleAuth';
 import { colors, radius, spacing } from './src/theme';
 
@@ -16,8 +17,6 @@ export default function App() {
   const auth = useGoogleAuth();
   const [tab, setTab] = useState<Tab>('captura');
   const [screen, setScreen] = useState<'main' | 'perfil'>('main');
-
-  const inicial = (auth.user?.name ?? auth.user?.email ?? '?').slice(0, 1).toUpperCase();
 
   return (
     <GestureHandlerRootView style={styles.flex}>
@@ -34,14 +33,10 @@ export default function App() {
                 {auth.idToken ? (
                   <Pressable
                     onPress={() => setScreen('perfil')}
-                    style={({ pressed }) => [styles.avatar, pressed && styles.pressed]}
+                    style={({ pressed }) => [pressed && styles.pressed]}
                     accessibilityLabel="Abrir perfil"
                   >
-                    {auth.user?.picture ? (
-                      <Image source={{ uri: auth.user.picture }} style={styles.avatarImg} />
-                    ) : (
-                      <Text style={styles.avatarText}>{inicial}</Text>
-                    )}
+                    <Avatar picture={auth.user?.picture} name={auth.user?.name ?? auth.user?.email} />
                   </Pressable>
                 ) : (
                   <GoogleSignInButton auth={auth} />
@@ -110,19 +105,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   brand: { color: colors.text, fontSize: 18, fontWeight: '800' },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  avatarImg: { width: '100%', height: '100%' },
-  avatarText: { color: colors.primary, fontWeight: '800', fontSize: 16 },
   tabBar: {
     flexDirection: 'row',
     gap: spacing.sm,
