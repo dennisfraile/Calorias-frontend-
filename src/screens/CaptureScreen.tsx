@@ -11,7 +11,9 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { analizarFoto, ApiError, type RegistroComida, type TipoComida } from '../api/comidas';
 import type { GoogleAuthState } from '../auth/useGoogleAuth';
-import { colors, radius, spacing } from '../theme';
+import Icon, { type IconName } from '../components/Icon';
+import { radius, spacing, type Palette } from '../theme';
+import { useTheme } from '../theme-context';
 
 interface Props {
   auth: GoogleAuthState;
@@ -23,6 +25,8 @@ interface Props {
  * y el ID Token de Google, y muestra los macros estimados.
  */
 export default function CaptureScreen({ auth }: Props) {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const [fotoUri, setFotoUri] = useState<string | null>(null);
   const [analizando, setAnalizando] = useState(false);
   const [resultado, setResultado] = useState<RegistroComida | null>(null);
@@ -77,102 +81,95 @@ export default function CaptureScreen({ auth }: Props) {
     }
   };
 
+  const analizarDeshabilitado = !fotoUri || analizando || !auth.idToken;
+
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Analizar comida</Text>
-      <Text style={styles.subtitle}>
-        Toma o elige una foto de tu plato y estima sus calorías y macros.
-      </Text>
-
-      <AuthBanner auth={auth} />
-
-
-      <View style={styles.tipoRow}>
-        {(['Desayuno', 'Almuerzo', 'Cena', 'Snack'] as TipoComida[]).map((t) => (
-          <Pressable
-            key={t}
-            onPress={() => setTipo(t)}
-            style={({ pressed }) => [
-              styles.tipoChip,
-              tipo === t && styles.tipoChipActive,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text style={[styles.tipoChipText, tipo === t && styles.tipoChipTextActive]}>{t}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <View style={styles.actionsRow}>
-        <ActionButton label="Tomar foto" onPress={tomarFoto} />
-        <ActionButton label="Galería" variant="secondary" onPress={elegirDeGaleria} />
-      </View>
-
-      <View style={styles.previewBox}>
-        {fotoUri ? (
-          <Image source={{ uri: fotoUri }} style={styles.preview} resizeMode="cover" />
-        ) : (
-          <Text style={styles.previewPlaceholder}>Sin foto seleccionada</Text>
-        )}
-      </View>
-
-      <Pressable
-        onPress={analizar}
-        disabled={!fotoUri || analizando || !auth.idToken}
-        style={({ pressed }) => [
-          styles.analyzeBtn,
-          (!fotoUri || analizando || !auth.idToken) && styles.analyzeBtnDisabled,
-          pressed && styles.pressed,
-        ]}
-      >
-        {analizando ? (
-          <ActivityIndicator color={colors.bg} />
-        ) : (
-          <Text style={styles.analyzeBtnText}>Analizar foto</Text>
-        )}
-      </Pressable>
-
-      {error && (
-        <View style={[styles.card, styles.errorCard]}>
-          <Text style={styles.errorText}>{error}</Text>
+    <ScrollView contentContainerStyle={styles.scroll}>
+      <View style={styles.container}>
+        <View style={styles.head}>
+          <Text style={styles.title}>Analizar comida</Text>
+          <Text style={styles.subtitle}>
+            Toma o elige una foto de tu plato y estima sus calorías y macros.
+          </Text>
         </View>
-      )}
 
-      {resultado && <ResultadoCard registro={resultado} />}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Tipo de comida</Text>
+          <View style={styles.tipoRow}>
+            {(['Desayuno', 'Almuerzo', 'Cena', 'Snack'] as TipoComida[]).map((t) => (
+              <Pressable
+                key={t}
+                onPress={() => setTipo(t)}
+                style={({ pressed }) => [
+                  styles.tipoChip,
+                  tipo === t && styles.tipoChipActive,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={[styles.tipoChipText, tipo === t && styles.tipoChipTextActive]}>{t}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        <Pressable
+          onPress={elegirDeGaleria}
+          style={({ pressed }) => [styles.previewBox, pressed && styles.pressed]}
+        >
+          {fotoUri ? (
+            <Image source={{ uri: fotoUri }} style={styles.preview} resizeMode="cover" />
+          ) : (
+            <View style={styles.previewEmpty}>
+              <Icon name="images" size={40} color={colors.textMuted} />
+              <Text style={styles.previewPlaceholder}>Sin foto seleccionada</Text>
+              <Text style={styles.previewHint}>Toca para elegir de la galería</Text>
+            </View>
+          )}
+        </Pressable>
+
+        <View style={styles.actionsRow}>
+          <ActionButton label="Tomar foto" icon="camera" onPress={tomarFoto} />
+          <ActionButton label="Galería" icon="images" variant="secondary" onPress={elegirDeGaleria} />
+        </View>
+
+        <Pressable
+          onPress={analizar}
+          disabled={analizarDeshabilitado}
+          style={({ pressed }) => [
+            styles.analyzeBtn,
+            analizarDeshabilitado && styles.analyzeBtnDisabled,
+            pressed && styles.pressed,
+          ]}
+        >
+          {analizando ? (
+            <ActivityIndicator color={colors.bg} />
+          ) : (
+            <View style={styles.analyzeInner}>
+              <Icon name="zap" size={18} color={colors.bg} />
+              <Text style={styles.analyzeBtnText}>Analizar foto</Text>
+            </View>
+          )}
+        </Pressable>
+
+        {!auth.idToken && (
+          <Text style={styles.loginHint}>Inicia sesión (arriba a la derecha) para analizar tu foto.</Text>
+        )}
+
+        {error && (
+          <View style={[styles.card, styles.errorCard]}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
+        {resultado && <ResultadoCard registro={resultado} />}
+      </View>
     </ScrollView>
   );
 }
 
-function AuthBanner({ auth }: Props) {
-  if (auth.idToken) {
-    return (
-      <View style={styles.authBanner}>
-        <Text style={styles.authText}>
-          Sesión activa{auth.user?.name ? `: ${auth.user.name}` : ''}
-        </Text>
-        <Pressable onPress={auth.signOut} hitSlop={8}>
-          <Text style={styles.authLink}>Salir</Text>
-        </Pressable>
-      </View>
-    );
-  }
-  return (
-    <View style={styles.authBanner}>
-      <Text style={styles.authText}>
-        {auth.configured
-          ? 'Inicia sesión para enviar fotos al backend.'
-          : 'Configura los Client IDs de Google en .env.'}
-      </Text>
-      <Pressable onPress={auth.signIn} hitSlop={8} disabled={auth.inProgress}>
-        <Text style={[styles.authLink, auth.inProgress && styles.dim]}>
-          {auth.inProgress ? 'Abriendo…' : 'Entrar con Google'}
-        </Text>
-      </Pressable>
-    </View>
-  );
-}
-
 function ResultadoCard({ registro }: { registro: RegistroComida }) {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   const detalles = registro.detalles ?? [];
   return (
     <View style={styles.card}>
@@ -200,6 +197,8 @@ function ResultadoCard({ registro }: { registro: RegistroComida }) {
 }
 
 function Macro({ label, value, suffix }: { label: string; value?: number; suffix?: string }) {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
   return (
     <View style={styles.macro}>
       <Text style={styles.macroValue}>
@@ -213,13 +212,18 @@ function Macro({ label, value, suffix }: { label: string; value?: number; suffix
 
 function ActionButton({
   label,
+  icon,
   onPress,
   variant = 'primary',
 }: {
   label: string;
+  icon: IconName;
   onPress: () => void;
   variant?: 'primary' | 'secondary';
 }) {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
+  const color = variant === 'secondary' ? colors.textMuted : colors.text;
   return (
     <Pressable
       onPress={onPress}
@@ -229,6 +233,7 @@ function ActionButton({
         pressed && styles.pressed,
       ]}
     >
+      <Icon name={icon} size={18} color={color} />
       <Text
         style={[styles.actionBtnText, variant === 'secondary' && styles.actionBtnTextSecondary]}
       >
@@ -238,10 +243,12 @@ function ActionButton({
   );
 }
 
-const styles = StyleSheet.create({
-  content: { padding: spacing.lg, paddingBottom: spacing.xl, gap: spacing.md },
+const makeStyles = (colors: Palette) => StyleSheet.create({
+  scroll: { padding: spacing.lg, paddingBottom: spacing.xl },
+  container: { width: '100%', maxWidth: 720, alignSelf: 'center', gap: spacing.md },
+  head: { gap: 4 },
   title: { color: colors.text, fontSize: 26, fontWeight: '700' },
-  subtitle: { color: colors.textMuted, fontSize: 14, marginTop: -spacing.xs },
+  subtitle: { color: colors.textMuted, fontSize: 14 },
   authBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -271,10 +278,13 @@ const styles = StyleSheet.create({
   tipoChipTextActive: { color: colors.bg },
   actionBtn: {
     flex: 1,
+    flexDirection: 'row',
     backgroundColor: colors.surfaceAlt,
     borderRadius: radius.md,
     paddingVertical: spacing.md,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -282,17 +292,21 @@ const styles = StyleSheet.create({
   actionBtnText: { color: colors.text, fontWeight: '600', fontSize: 15 },
   actionBtnTextSecondary: { color: colors.textMuted },
   previewBox: {
-    height: 240,
+    height: 300,
     borderRadius: radius.lg,
     backgroundColor: colors.surface,
     borderWidth: 1,
+    borderStyle: 'dashed',
     borderColor: colors.border,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
+  previewEmpty: { alignItems: 'center', gap: spacing.xs },
   preview: { width: '100%', height: '100%' },
-  previewPlaceholder: { color: colors.textMuted, fontSize: 14 },
+  previewPlaceholder: { color: colors.textMuted, fontSize: 14, fontWeight: '600' },
+  previewHint: { color: colors.textMuted, fontSize: 12 },
+  loginHint: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
   analyzeBtn: {
     backgroundColor: colors.primary,
     borderRadius: radius.md,
@@ -302,6 +316,7 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   analyzeBtnDisabled: { backgroundColor: colors.border },
+  analyzeInner: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   analyzeBtnText: { color: colors.bg, fontWeight: '800', fontSize: 16 },
   pressed: { opacity: 0.8 },
   card: {

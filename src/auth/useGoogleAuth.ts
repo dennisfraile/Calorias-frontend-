@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
 import { GOOGLE_CLIENT_IDS, GOOGLE_CONFIGURED } from '../config';
+import { clearSession, loadValidSession, saveSession, touchSession } from './sessionStore';
 
 // Necesario para que el navegador del sistema cierre y devuelva el control a la app.
 WebBrowser.maybeCompleteAuthSession();
@@ -76,11 +78,63 @@ export function useGoogleAuth(): GoogleAuthState {
       setIdToken(token);
       setUser(token ? decodeIdToken(token) : null);
       setError(token ? null : 'Google no devolvió un id_token. Revisa los scopes (openid).');
+      if (token) saveSession(token); // persistir para sobrevivir recargas
     } else if (response.type === 'error') {
       setError(response.error?.message ?? 'Error de autenticación con Google.');
     }
     setInProgress(false);
   }, [response]);
+
+  // Restaura la sesión persistida al cargar la app (si no caducó ni venció por inactividad).
+  useEffect(() => {
+    let activo = true;
+    loadValidSession().then((token) => {
+      if (activo && token) {
+        setIdToken(token);
+        setUser(decodeIdToken(token));
+        touchSession();
+      }
+    });
+    return () => {
+      activo = false;
+    };
+  }, []);
+
+  // Mantiene viva la sesión con la actividad del usuario y la cierra al caducar o por inactividad.
+  useEffect(() => {
+    if (!idToken) return;
+
+    const revisar = async () => {
+      const token = await loadValidSession();
+      if (!token) {
+        setIdToken(null);
+        setUser(null);
+      }
+    };
+    const tocar = () => {
+      touchSession();
+    };
+
+    const interval = setInterval(() => {
+      if (Platform.OS !== 'web') touchSession(); // nativo: viva mientras la app esté en uso
+      revisar();
+    }, 30_000);
+
+    const web = Platform.OS === 'web' && typeof window !== 'undefined';
+    if (web) {
+      window.addEventListener('focus', revisar);
+      window.addEventListener('pointerdown', tocar);
+      window.addEventListener('keydown', tocar);
+    }
+    return () => {
+      clearInterval(interval);
+      if (web) {
+        window.removeEventListener('focus', revisar);
+        window.removeEventListener('pointerdown', tocar);
+        window.removeEventListener('keydown', tocar);
+      }
+    };
+  }, [idToken]);
 
   const signIn = useCallback(() => {
     setError(null);
@@ -103,6 +157,7 @@ export function useGoogleAuth(): GoogleAuthState {
     setIdToken(null);
     setUser(null);
     setError(null);
+    clearSession();
   }, []);
 
   return {
