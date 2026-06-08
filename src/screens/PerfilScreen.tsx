@@ -36,6 +36,7 @@ export default function PerfilScreen({
 }) {
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [guardado, setGuardado] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [perfil, setPerfil] = useState<Perfil | null>(null);
 
@@ -98,6 +99,13 @@ export default function PerfilScreen({
     [protPct, carbPct, grasaPct],
   );
 
+  // El badge "Datos guardados" se cierra solo a los 6 s.
+  useEffect(() => {
+    if (!guardado) return;
+    const t = setTimeout(() => setGuardado(false), 6000);
+    return () => clearTimeout(t);
+  }, [guardado]);
+
   async function guardar() {
     if (!auth.idToken) return;
     const input: PerfilInput = {
@@ -118,6 +126,7 @@ export default function PerfilScreen({
     try {
       const p = await putPerfil(auth.idToken, input);
       aplicar(p);
+      setGuardado(true);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo guardar el perfil.');
     } finally {
@@ -144,6 +153,12 @@ export default function PerfilScreen({
           <Text style={styles.salir}>Salir</Text>
         </Pressable>
       </View>
+
+      {guardado && (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>✓ Datos guardados</Text>
+        </View>
+      )}
 
       {perfil && !perfil.perfilCompleto && (
         <View style={styles.aviso}>
@@ -330,6 +345,18 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
   },
   avisoText: { color: colors.warning, fontSize: 13 },
+  badge: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(34,197,94,0.15)',
+    borderColor: colors.primary,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+  },
+  badgeText: { color: colors.primary, fontWeight: '700', fontSize: 13 },
   error: { color: colors.danger, fontSize: 13 },
   metaCard: {
     backgroundColor: colors.surface,
