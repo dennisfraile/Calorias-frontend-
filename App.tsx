@@ -8,6 +8,7 @@ import HistoryScreen from './src/screens/HistoryScreen';
 import PerfilScreen from './src/screens/PerfilScreen';
 import GoogleSignInButton from './src/components/GoogleSignInButton';
 import Avatar from './src/components/Avatar';
+import Icon, { type IconName } from './src/components/Icon';
 import { useGoogleAuth } from './src/auth/useGoogleAuth';
 import { colors, radius, spacing } from './src/theme';
 
@@ -54,11 +55,13 @@ export default function App() {
               <View style={styles.tabBar}>
                 <TabButton
                   label="Captura"
+                  icon="camera"
                   active={tab === 'captura'}
                   onPress={() => setTab('captura')}
                 />
                 <TabButton
                   label="Historial"
+                  icon="history"
                   active={tab === 'historial'}
                   onPress={() => setTab('historial')}
                 />
@@ -73,10 +76,12 @@ export default function App() {
 
 function TabButton({
   label,
+  icon,
   active,
   onPress,
 }: {
   label: string;
+  icon: IconName;
   active: boolean;
   onPress: () => void;
 }) {
@@ -85,6 +90,7 @@ function TabButton({
       onPress={onPress}
       style={({ pressed }) => [styles.tab, active && styles.tabActive, pressed && styles.pressed]}
     >
+      <Icon name={icon} size={18} color={active ? colors.primary : colors.textMuted} />
       <Text style={[styles.tabText, active && styles.tabTextActive]}>{label}</Text>
     </Pressable>
   );
@@ -116,7 +122,10 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
     paddingVertical: spacing.sm,
     borderRadius: radius.md,
   },

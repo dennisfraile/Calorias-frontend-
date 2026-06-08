@@ -13,6 +13,7 @@ import { ApiError } from '../api/comidas';
 import { getPerfil, putPerfil, type Perfil, type PerfilInput } from '../api/perfil';
 import DateField from '../components/DateField';
 import HelpTip from '../components/HelpTip';
+import Icon from '../components/Icon';
 import { colors, radius, spacing } from '../theme';
 
 const SEXOS = ['Masculino', 'Femenino'] as const;
@@ -145,11 +146,13 @@ export default function PerfilScreen({
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
       <View style={styles.topRow}>
-        <Pressable onPress={onClose} hitSlop={10}>
-          <Text style={styles.back}>‹ Volver</Text>
+        <Pressable onPress={onClose} hitSlop={10} style={styles.backRow}>
+          <Icon name="chevronLeft" size={18} color={colors.accent} />
+          <Text style={styles.back}>Volver</Text>
         </Pressable>
         <Text style={styles.title}>Perfil</Text>
-        <Pressable onPress={auth.signOut} hitSlop={10}>
+        <Pressable onPress={auth.signOut} hitSlop={10} style={styles.salirRow}>
+          <Icon name="logout" size={16} color={colors.danger} />
           <Text style={styles.salir}>Salir</Text>
         </Pressable>
       </View>
@@ -265,7 +268,14 @@ export default function PerfilScreen({
         disabled={guardando}
         style={({ pressed }) => [styles.boton, pressed && styles.pressed, guardando && styles.botonOff]}
       >
-        <Text style={styles.botonText}>{guardando ? 'Guardando…' : 'Guardar perfil'}</Text>
+        {guardando ? (
+          <Text style={styles.botonText}>Guardando…</Text>
+        ) : (
+          <View style={styles.botonInner}>
+            <Icon name="check" size={18} color={colors.bg} />
+            <Text style={styles.botonText}>Guardar perfil</Text>
+          </View>
+        )}
       </Pressable>
     </ScrollView>
   );
@@ -334,8 +344,10 @@ const styles = StyleSheet.create({
   content: { padding: spacing.md, gap: spacing.sm, paddingBottom: spacing.xl },
   centro: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  back: { color: colors.accent, fontSize: 16, fontWeight: '600', width: 60 },
-  salir: { color: colors.danger, fontSize: 14, fontWeight: '600', width: 60, textAlign: 'right' },
+  backRow: { flexDirection: 'row', alignItems: 'center', gap: 2, minWidth: 72 },
+  back: { color: colors.accent, fontSize: 16, fontWeight: '600' },
+  salirRow: { flexDirection: 'row', alignItems: 'center', gap: 4, minWidth: 72, justifyContent: 'flex-end' },
+  salir: { color: colors.danger, fontSize: 14, fontWeight: '600' },
   title: { color: colors.text, fontSize: 22, fontWeight: '800' },
   aviso: {
     backgroundColor: colors.surfaceAlt,
@@ -405,6 +417,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   botonOff: { backgroundColor: colors.primaryDark },
+  botonInner: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   botonText: { color: colors.bg, fontSize: 16, fontWeight: '700' },
   pressed: { opacity: 0.7 },
 });

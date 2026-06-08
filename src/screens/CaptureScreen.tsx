@@ -11,6 +11,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { analizarFoto, ApiError, type RegistroComida, type TipoComida } from '../api/comidas';
 import type { GoogleAuthState } from '../auth/useGoogleAuth';
+import Icon, { type IconName } from '../components/Icon';
 import { colors, radius, spacing } from '../theme';
 
 interface Props {
@@ -101,8 +102,8 @@ export default function CaptureScreen({ auth }: Props) {
       </View>
 
       <View style={styles.actionsRow}>
-        <ActionButton label="Tomar foto" onPress={tomarFoto} />
-        <ActionButton label="Galería" variant="secondary" onPress={elegirDeGaleria} />
+        <ActionButton label="Tomar foto" icon="camera" onPress={tomarFoto} />
+        <ActionButton label="Galería" icon="images" variant="secondary" onPress={elegirDeGaleria} />
       </View>
 
       <View style={styles.previewBox}>
@@ -125,7 +126,10 @@ export default function CaptureScreen({ auth }: Props) {
         {analizando ? (
           <ActivityIndicator color={colors.bg} />
         ) : (
-          <Text style={styles.analyzeBtnText}>Analizar foto</Text>
+          <View style={styles.analyzeInner}>
+            <Icon name="zap" size={18} color={colors.bg} />
+            <Text style={styles.analyzeBtnText}>Analizar foto</Text>
+          </View>
         )}
       </Pressable>
 
@@ -181,13 +185,16 @@ function Macro({ label, value, suffix }: { label: string; value?: number; suffix
 
 function ActionButton({
   label,
+  icon,
   onPress,
   variant = 'primary',
 }: {
   label: string;
+  icon: IconName;
   onPress: () => void;
   variant?: 'primary' | 'secondary';
 }) {
+  const color = variant === 'secondary' ? colors.textMuted : colors.text;
   return (
     <Pressable
       onPress={onPress}
@@ -197,6 +204,7 @@ function ActionButton({
         pressed && styles.pressed,
       ]}
     >
+      <Icon name={icon} size={18} color={color} />
       <Text
         style={[styles.actionBtnText, variant === 'secondary' && styles.actionBtnTextSecondary]}
       >
@@ -239,10 +247,13 @@ const styles = StyleSheet.create({
   tipoChipTextActive: { color: colors.bg },
   actionBtn: {
     flex: 1,
+    flexDirection: 'row',
     backgroundColor: colors.surfaceAlt,
     borderRadius: radius.md,
     paddingVertical: spacing.md,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -270,6 +281,7 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   analyzeBtnDisabled: { backgroundColor: colors.border },
+  analyzeInner: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   analyzeBtnText: { color: colors.bg, fontWeight: '800', fontSize: 16 },
   pressed: { opacity: 0.8 },
   card: {
