@@ -49,7 +49,7 @@ export function buildHistorialSpec(c: Palette): Spec {
         type: 'stack',
         props: { direction: 'vertical', gap: 16 },
         style: { padding: 24, backgroundColor: c.bg },
-        children: ['titulo', 'subtitulo', 'error', 'cargando', 'resumen', 'lista', 'vacio'],
+        children: ['titulo', 'error', 'cargando', 'resumen', 'lista', 'vacio'],
       },
 
       titulo: {
@@ -57,16 +57,11 @@ export function buildHistorialSpec(c: Palette): Spec {
         props: { content: 'Historial', variant: 'heading' },
         style: { color: c.text, fontSize: 26, fontWeight: '700' },
       },
-      subtitulo: {
-        type: 'text',
-        props: { content: 'Pantalla data-driven renderizada desde un AppSpec JSON de Mythik.', variant: 'caption' },
-        style: { color: c.textMuted, fontSize: 13 },
-      },
 
       // Estado de error de carga (lo escribe el fetch en errorTarget).
       error: {
         type: 'text',
-        props: { content: 'No se pudo cargar el historial. ¿Backend arriba y sesión iniciada?', variant: 'body' },
+        props: { content: 'No se pudo cargar el historial. Inténtalo de nuevo.', variant: 'body' },
         style: { color: c.danger, fontSize: 14, paddingVertical: 12 },
         visible: { $state: '/ui/loadErrors/comidas' },
       },

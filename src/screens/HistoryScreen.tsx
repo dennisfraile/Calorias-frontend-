@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { MythikRenderer } from 'mythik-react-native';
 import { buildHistorialSpec } from '../mythik/historialSpec';
 import { API_BASE_URL } from '../config';
@@ -41,6 +41,17 @@ export default function HistoryScreen({ auth }: Props) {
     [],
   );
 
+  // Sin sesión no hay historial que mostrar: mensaje claro en rojo (no se llama al backend).
+  if (!auth.idToken) {
+    return (
+      <View style={[styles.container, styles.centro, { backgroundColor: colors.bg }]}>
+        <Text style={[styles.aviso, { color: colors.danger }]}>
+          Debe iniciar sesión para ver su historial.
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <MythikRenderer spec={spec} fetcher={fetcher} urlResolver={urlResolver} />
@@ -50,4 +61,6 @@ export default function HistoryScreen({ auth }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  centro: { alignItems: 'center', justifyContent: 'center', padding: 24 },
+  aviso: { fontSize: 16, fontWeight: '600', textAlign: 'center' },
 });
