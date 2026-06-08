@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import type { GoogleAuthState } from '../auth/useGoogleAuth';
@@ -53,6 +54,10 @@ export default function PerfilScreen({
   const [carbPct, setCarbPct] = useState('40');
   const [grasaPct, setGrasaPct] = useState('30');
   const [override, setOverride] = useState('');
+
+  // Layout responsive: en pantallas anchas (web/tablet) agrupamos pares de campos en fila.
+  const { width } = useWindowDimensions();
+  const ancha = width >= 700;
 
   function aplicar(p: Perfil) {
     setPerfil(p);
@@ -143,141 +148,176 @@ export default function PerfilScreen({
     );
   }
 
+  const numStyle = ancha ? styles.numWide : undefined;
+
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      <View style={styles.topRow}>
-        <Pressable onPress={onClose} hitSlop={10} style={styles.backRow}>
-          <Icon name="chevronLeft" size={18} color={colors.accent} />
-          <Text style={styles.back}>Volver</Text>
-        </Pressable>
-        <Text style={styles.title}>Perfil</Text>
-        <Pressable onPress={auth.signOut} hitSlop={10} style={styles.salirRow}>
-          <Icon name="logout" size={16} color={colors.danger} />
-          <Text style={styles.salir}>Salir</Text>
-        </Pressable>
-      </View>
-
-      {guardado && (
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>✓ Datos guardados</Text>
+    <ScrollView style={styles.root} contentContainerStyle={styles.scroll}>
+      <View style={styles.container}>
+        <View style={styles.topRow}>
+          <Pressable onPress={onClose} hitSlop={10} style={styles.backRow}>
+            <Icon name="chevronLeft" size={18} color={colors.accent} />
+            <Text style={styles.back}>Volver</Text>
+          </Pressable>
+          <Text style={styles.title}>Perfil</Text>
+          <Pressable onPress={auth.signOut} hitSlop={10} style={styles.salirRow}>
+            <Icon name="logout" size={16} color={colors.danger} />
+            <Text style={styles.salir}>Salir</Text>
+          </Pressable>
         </View>
-      )}
 
-      {perfil && !perfil.perfilCompleto && (
-        <View style={styles.aviso}>
-          <Text style={styles.avisoText}>
-            Completa todos los datos para calcular tu meta de calorías.
-          </Text>
-        </View>
-      )}
-
-      {error && <Text style={styles.error}>{error}</Text>}
-
-      {/* Meta calculada */}
-      {perfil?.perfilCompleto && perfil.metaCalorias != null && (
-        <View style={styles.metaCard}>
-          <Text style={styles.metaKcal}>{perfil.metaCalorias} kcal/día</Text>
-          <Text style={styles.metaSub}>
-            TMB {perfil.tmb} · TDEE {perfil.tdee}
-            {perfil.metaTopada ? ' · topada al mínimo seguro' : ''}
-          </Text>
-          {perfil.macros && (
-            <Text style={styles.metaSub}>
-              P {perfil.macros.proteinaG} g · C {perfil.macros.carbosG} g · G{' '}
-              {perfil.macros.grasasG} g
-            </Text>
-          )}
-        </View>
-      )}
-
-      <Campo
-        label="Sexo"
-        help="Se usa en la fórmula Mifflin-St Jeor: el cálculo del metabolismo basal difiere entre hombres y mujeres."
-      >
-        <Chips options={SEXOS} value={sexo} onChange={setSexo} />
-      </Campo>
-
-      <Campo
-        label="Fecha de nacimiento"
-        help="Tu edad ajusta el cálculo: el metabolismo basal disminuye con los años."
-      >
-        <DateField
-          value={fechaNacimiento.trim() === '' ? null : fechaNacimiento}
-          onChange={setFechaNacimiento}
-          placeholder="Selecciona tu fecha"
-        />
-      </Campo>
-
-      <Campo label="Altura (cm)" help="En centímetros. Entra en la fórmula del gasto energético.">
-        <Input value={alturaCm} onChangeText={setAlturaCm} keyboardType="numeric" placeholder="178" />
-      </Campo>
-
-      <Campo label="Peso (kg)" help="En kilogramos. Es el factor de mayor peso en tu metabolismo basal.">
-        <Input value={pesoKg} onChangeText={setPesoKg} keyboardType="numeric" placeholder="80" />
-      </Campo>
-
-      <Campo
-        label="Nivel de actividad"
-        help="Cuánto te mueves al día. Multiplica tu metabolismo basal para estimar el gasto total (TDEE)."
-      >
-        <Chips options={NIVELES} value={nivelActividad} onChange={setNivelActividad} />
-      </Campo>
-
-      <Campo
-        label="Objetivo"
-        help="Perder, mantener o ganar peso. Ajusta tus calorías por encima o por debajo del gasto."
-      >
-        <Chips options={OBJETIVOS} value={objetivo} onChange={setObjetivo} />
-      </Campo>
-
-      <Campo
-        label="Ritmo (kg/semana)"
-        help="Kg por semana que quieres perder o ganar. 0.5 es un ritmo saludable. Se ignora si eliges Mantener."
-      >
-        <Input
-          value={ritmoKgSemana}
-          onChangeText={setRitmoKgSemana}
-          keyboardType="numeric"
-          placeholder="0.5"
-        />
-      </Campo>
-
-      <Campo
-        label="Split de macros (%)"
-        help="Cómo repartir tus calorías entre proteína, carbohidratos y grasa. Deben sumar 100%."
-      >
-        <View style={styles.pctRow}>
-          <Input value={protPct} onChangeText={setProtPct} keyboardType="numeric" style={styles.pctInput} />
-          <Input value={carbPct} onChangeText={setCarbPct} keyboardType="numeric" style={styles.pctInput} />
-          <Input value={grasaPct} onChangeText={setGrasaPct} keyboardType="numeric" style={styles.pctInput} />
-        </View>
-        <Text style={[styles.hint, pctSuma !== 100 && styles.hintWarn]}>
-          Proteína · Carbos · Grasas {pctSuma !== 100 ? `— suman ${pctSuma}, deben sumar 100` : '✓ suman 100'}
-        </Text>
-      </Campo>
-
-      <Campo
-        label="Override de calorías (opcional)"
-        help="Si prefieres fijar tu meta manualmente, escribe las kcal aquí y mandará sobre el cálculo."
-      >
-        <Input value={override} onChangeText={setOverride} keyboardType="numeric" placeholder="manual" />
-      </Campo>
-
-      <Pressable
-        onPress={guardar}
-        disabled={guardando}
-        style={({ pressed }) => [styles.boton, pressed && styles.pressed, guardando && styles.botonOff]}
-      >
-        {guardando ? (
-          <Text style={styles.botonText}>Guardando…</Text>
-        ) : (
-          <View style={styles.botonInner}>
-            <Icon name="check" size={18} color={colors.bg} />
-            <Text style={styles.botonText}>Guardar perfil</Text>
+        {guardado && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>✓ Datos guardados</Text>
           </View>
         )}
-      </Pressable>
+
+        {perfil && !perfil.perfilCompleto && (
+          <View style={styles.aviso}>
+            <Text style={styles.avisoText}>
+              Completa todos los datos para calcular tu meta de calorías.
+            </Text>
+          </View>
+        )}
+
+        {error && <Text style={styles.error}>{error}</Text>}
+
+        {/* Meta calculada */}
+        {perfil?.perfilCompleto && perfil.metaCalorias != null && (
+          <View style={styles.metaCard}>
+            <Text style={styles.metaKcal}>{perfil.metaCalorias} kcal/día</Text>
+            <Text style={styles.metaSub}>
+              TMB {perfil.tmb} · TDEE {perfil.tdee}
+              {perfil.metaTopada ? ' · topada al mínimo seguro' : ''}
+            </Text>
+            {perfil.macros && (
+              <Text style={styles.metaSub}>
+                P {perfil.macros.proteinaG} g · C {perfil.macros.carbosG} g · G{' '}
+                {perfil.macros.grasasG} g
+              </Text>
+            )}
+          </View>
+        )}
+
+        <Card title="Datos personales">
+          <Campo
+            label="Sexo"
+            help="Se usa en la fórmula Mifflin-St Jeor: el cálculo del metabolismo basal difiere entre hombres y mujeres."
+          >
+            <Chips options={SEXOS} value={sexo} onChange={setSexo} />
+          </Campo>
+
+          <Campo
+            label="Fecha de nacimiento"
+            help="Tu edad ajusta el cálculo: el metabolismo basal disminuye con los años."
+          >
+            <DateField
+              value={fechaNacimiento.trim() === '' ? null : fechaNacimiento}
+              onChange={setFechaNacimiento}
+              placeholder="Selecciona tu fecha"
+            />
+          </Campo>
+
+          <View style={ancha ? styles.pairRow : styles.pairStack}>
+            <View style={ancha ? styles.pairItem : undefined}>
+              <Campo label="Altura (cm)" help="En centímetros. Entra en la fórmula del gasto energético.">
+                <Input value={alturaCm} onChangeText={setAlturaCm} keyboardType="numeric" placeholder="178" />
+              </Campo>
+            </View>
+            <View style={ancha ? styles.pairItem : undefined}>
+              <Campo
+                label="Peso (kg)"
+                help="En kilogramos. Es el factor de mayor peso en tu metabolismo basal."
+              >
+                <Input value={pesoKg} onChangeText={setPesoKg} keyboardType="numeric" placeholder="80" />
+              </Campo>
+            </View>
+          </View>
+        </Card>
+
+        <Card title="Actividad y objetivo">
+          <Campo
+            label="Nivel de actividad"
+            help="Cuánto te mueves al día. Multiplica tu metabolismo basal para estimar el gasto total (TDEE)."
+          >
+            <Chips options={NIVELES} value={nivelActividad} onChange={setNivelActividad} />
+          </Campo>
+
+          <Campo
+            label="Objetivo"
+            help="Perder, mantener o ganar peso. Ajusta tus calorías por encima o por debajo del gasto."
+          >
+            <Chips options={OBJETIVOS} value={objetivo} onChange={setObjetivo} />
+          </Campo>
+
+          <Campo
+            label="Ritmo (kg/semana)"
+            help="Kg por semana que quieres perder o ganar. 0.5 es un ritmo saludable. Se ignora si eliges Mantener."
+          >
+            <Input
+              value={ritmoKgSemana}
+              onChangeText={setRitmoKgSemana}
+              keyboardType="numeric"
+              placeholder="0.5"
+              style={numStyle}
+            />
+          </Campo>
+        </Card>
+
+        <Card title="Macros y meta">
+          <Campo
+            label="Split de macros (%)"
+            help="Cómo repartir tus calorías entre proteína, carbohidratos y grasa. Deben sumar 100%."
+          >
+            <View style={styles.pctRow}>
+              <Input value={protPct} onChangeText={setProtPct} keyboardType="numeric" style={styles.pctInput} />
+              <Input value={carbPct} onChangeText={setCarbPct} keyboardType="numeric" style={styles.pctInput} />
+              <Input value={grasaPct} onChangeText={setGrasaPct} keyboardType="numeric" style={styles.pctInput} />
+            </View>
+            <Text style={[styles.hint, pctSuma !== 100 && styles.hintWarn]}>
+              Proteína · Carbos · Grasas{' '}
+              {pctSuma !== 100 ? `— suman ${pctSuma}, deben sumar 100` : '✓ suman 100'}
+            </Text>
+          </Campo>
+
+          <Campo
+            label="Override de calorías (opcional)"
+            help="Si prefieres fijar tu meta manualmente, escribe las kcal aquí y mandará sobre el cálculo."
+          >
+            <Input
+              value={override}
+              onChangeText={setOverride}
+              keyboardType="numeric"
+              placeholder="manual"
+              style={numStyle}
+            />
+          </Campo>
+        </Card>
+
+        <Pressable
+          onPress={guardar}
+          disabled={guardando}
+          style={({ pressed }) => [styles.boton, pressed && styles.pressed, guardando && styles.botonOff]}
+        >
+          {guardando ? (
+            <Text style={styles.botonText}>Guardando…</Text>
+          ) : (
+            <View style={styles.botonInner}>
+              <Icon name="check" size={18} color={colors.bg} />
+              <Text style={styles.botonText}>Guardar perfil</Text>
+            </View>
+          )}
+        </Pressable>
+      </View>
     </ScrollView>
+  );
+}
+
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>{title}</Text>
+      {children}
+    </View>
   );
 }
 
@@ -341,7 +381,27 @@ function Chips({
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.md, gap: spacing.sm, paddingBottom: spacing.xl },
+  scroll: { padding: spacing.md, paddingBottom: spacing.xl },
+  container: { width: '100%', maxWidth: 760, alignSelf: 'center', gap: spacing.md },
+  card: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    gap: spacing.md,
+  },
+  cardTitle: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  pairRow: { flexDirection: 'row', gap: spacing.md },
+  pairStack: { flexDirection: 'column', gap: spacing.md },
+  pairItem: { flex: 1 },
+  numWide: { maxWidth: 220 },
   centro: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   backRow: { flexDirection: 'row', alignItems: 'center', gap: 2, minWidth: 72 },
