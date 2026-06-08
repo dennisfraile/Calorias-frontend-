@@ -23,6 +23,8 @@ export interface RegistroComida {
   [key: string]: unknown;
 }
 
+export type TipoComida = 'Desayuno' | 'Almuerzo' | 'Cena' | 'Snack';
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -40,14 +42,15 @@ export class ApiError extends Error {
  * Web y nativo difieren: en RN se pasa al FormData un objeto { uri, name, type }
  * y el runtime arma el multipart; en web hay que adjuntar un Blob/File real
  * (un objeto plano se serializaría como "[object Object]" y el backend no
- * recibiría archivo → 400 "The foto field is required").
+ * recibiría archivo -> 400 "The foto field is required").
  */
 export async function analizarFoto(
   fotoUri: string,
   idToken: string,
+  tipo: TipoComida,
 ): Promise<RegistroComida> {
   const nombre = fotoUri.split('/').pop() || `comida-${Date.now()}.jpg`;
-  const tipo = inferirMime(nombre);
+  const mimeType = inferirMime(nombre);
 
   const form = new FormData();
   if (Platform.OS === 'web') {
@@ -60,9 +63,15 @@ export async function analizarFoto(
     form.append('foto', {
       uri: fotoUri,
       name: nombre,
-      type: tipo,
+      type: mimeType,
     } as unknown as Blob);
   }
+
+  // Día local del dispositivo en formato YYYY-MM-DD (sin desfase de zona horaria).
+  const ahora = new Date();
+  const fechaLocal = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
+  form.append('tipo', tipo);
+  form.append('fechaLocal', fechaLocal);
 
   let res: Response;
   try {

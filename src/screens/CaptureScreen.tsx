@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { analizarFoto, ApiError, type RegistroComida } from '../api/comidas';
+import { analizarFoto, ApiError, type RegistroComida, type TipoComida } from '../api/comidas';
 import type { GoogleAuthState } from '../auth/useGoogleAuth';
 import { colors, radius, spacing } from '../theme';
 
@@ -27,6 +27,7 @@ export default function CaptureScreen({ auth }: Props) {
   const [analizando, setAnalizando] = useState(false);
   const [resultado, setResultado] = useState<RegistroComida | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [tipo, setTipo] = useState<TipoComida>('Almuerzo');
 
   const tomarFoto = async () => {
     setError(null);
@@ -67,7 +68,7 @@ export default function CaptureScreen({ auth }: Props) {
     setError(null);
     setResultado(null);
     try {
-      const data = await analizarFoto(fotoUri, auth.idToken);
+      const data = await analizarFoto(fotoUri, auth.idToken, tipo);
       setResultado(data);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Error inesperado al analizar la foto.');
@@ -84,6 +85,23 @@ export default function CaptureScreen({ auth }: Props) {
       </Text>
 
       <AuthBanner auth={auth} />
+
+
+      <View style={styles.tipoRow}>
+        {(['Desayuno', 'Almuerzo', 'Cena', 'Snack'] as TipoComida[]).map((t) => (
+          <Pressable
+            key={t}
+            onPress={() => setTipo(t)}
+            style={({ pressed }) => [
+              styles.tipoChip,
+              tipo === t && styles.tipoChipActive,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={[styles.tipoChipText, tipo === t && styles.tipoChipTextActive]}>{t}</Text>
+          </Pressable>
+        ))}
+      </View>
 
       <View style={styles.actionsRow}>
         <ActionButton label="Tomar foto" onPress={tomarFoto} />
@@ -239,6 +257,19 @@ const styles = StyleSheet.create({
   authLink: { color: colors.accent, fontSize: 13, fontWeight: '600' },
   dim: { opacity: 0.5 },
   actionsRow: { flexDirection: 'row', gap: spacing.sm },
+  tipoRow: { flexDirection: 'row', gap: spacing.xs, flexWrap: 'wrap' },
+  tipoChip: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  tipoChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  tipoChipText: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
+  tipoChipTextActive: { color: colors.bg },
+  
   actionBtn: {
     flex: 1,
     backgroundColor: colors.surfaceAlt,
