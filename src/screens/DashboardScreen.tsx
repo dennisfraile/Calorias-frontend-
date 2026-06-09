@@ -5,6 +5,7 @@ import { ApiError } from '../api/comidas';
 import { getResumen, type Periodo, type ResumenPeriodos } from '../api/resumen';
 import { useTheme } from '../theme-context';
 import { radius, spacing, type Palette } from '../theme';
+import { desplazarAncla, enTopeFuturo, etiquetaRango, hoyLocal } from './dashboardFechas';
 
 const PERIODOS: { key: Periodo; label: string }[] = [
   { key: 'diario', label: 'Día' },
@@ -15,15 +16,11 @@ const PERIODOS: { key: Periodo; label: string }[] = [
   { key: 'anual', label: 'Año' },
 ];
 
-function hoyLocal(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
 export default function DashboardScreen({ auth }: { auth: GoogleAuthState }) {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
   const [periodo, setPeriodo] = useState<Periodo>('semanal');
+  const [ancla, setAncla] = useState<string>(hoyLocal());
   const [data, setData] = useState<ResumenPeriodos | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +33,7 @@ export default function DashboardScreen({ auth }: { auth: GoogleAuthState }) {
     let activo = true;
     setCargando(true);
     setError(null);
-    getResumen(auth.idToken, periodo, hoyLocal())
+    getResumen(auth.idToken, periodo, ancla)
       .then((r) => {
         if (activo) setData(r);
       })
@@ -49,7 +46,7 @@ export default function DashboardScreen({ auth }: { auth: GoogleAuthState }) {
     return () => {
       activo = false;
     };
-  }, [auth.idToken, periodo]);
+  }, [auth.idToken, periodo, ancla]);
 
   if (!auth.idToken) {
     return (
@@ -78,6 +75,33 @@ export default function DashboardScreen({ auth }: { auth: GoogleAuthState }) {
               <Text style={[styles.tabText, periodo === p.key && styles.tabTextActive]}>{p.label}</Text>
             </Pressable>
           ))}
+        </View>
+
+        <View style={styles.navFechas}>
+          <Pressable
+            onPress={() => setAncla((a) => desplazarAncla(a, periodo, -1))}
+            style={({ pressed }) => [styles.navBtn, pressed && styles.pressed]}
+          >
+            <Text style={styles.navBtnText}>‹</Text>
+          </Pressable>
+          <Text style={styles.navLabel}>{etiquetaRango(ancla, periodo)}</Text>
+          <Pressable
+            disabled={enTopeFuturo(ancla, periodo)}
+            onPress={() => setAncla((a) => desplazarAncla(a, periodo, 1))}
+            style={({ pressed }) => [
+              styles.navBtn,
+              enTopeFuturo(ancla, periodo) && styles.navBtnDisabled,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={styles.navBtnText}>›</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setAncla(hoyLocal())}
+            style={({ pressed }) => [styles.hoyBtn, pressed && styles.pressed]}
+          >
+            <Text style={styles.hoyBtnText}>Hoy</Text>
+          </Pressable>
         </View>
 
         {cargando && <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.lg }} />}
@@ -236,6 +260,19 @@ const makeStyles = (colors: Palette) =>
     tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     tabText: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
     tabTextActive: { color: colors.bg },
+    navFechas: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+    navBtn: {
+      width: 36, height: 36, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center',
+      backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border,
+    },
+    navBtnDisabled: { opacity: 0.35 },
+    navBtnText: { color: colors.text, fontSize: 20, fontWeight: '800', lineHeight: 22 },
+    navLabel: { color: colors.text, fontSize: 14, fontWeight: '700', minWidth: 130, textAlign: 'center' },
+    hoyBtn: {
+      paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.md,
+      backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border,
+    },
+    hoyBtnText: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
     card: {
       backgroundColor: colors.surface,
       borderColor: colors.border,
