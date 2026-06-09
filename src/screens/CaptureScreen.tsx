@@ -13,9 +13,12 @@ import * as ImagePicker from 'expo-image-picker';
 import {
   analizarFoto,
   actualizarPorciones,
+  leerEtiqueta,
+  guardarEtiqueta,
   ApiError,
   type CorreccionPorcion,
   type DetalleComida,
+  type EtiquetaNutricional,
   type RegistroComida,
   type TipoComida,
 } from '../api/comidas';
@@ -41,6 +44,11 @@ export default function CaptureScreen({ auth }: Props) {
   const [resultado, setResultado] = useState<RegistroComida | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tipo, setTipo] = useState<TipoComida>('Almuerzo');
+  const [modo, setModo] = useState<'plato' | 'etiqueta'>('plato');
+  const [etiqueta, setEtiqueta] = useState<EtiquetaNutricional | null>(null);
+  const [porciones, setPorciones] = useState<string>('1');
+  const [leyendo, setLeyendo] = useState(false);
+  const [guardandoEtq, setGuardandoEtq] = useState(false);
 
   const tomarFoto = async () => {
     setError(null);
@@ -92,6 +100,44 @@ export default function CaptureScreen({ auth }: Props) {
 
   const analizarDeshabilitado = !fotoUri || analizando || !auth.idToken;
 
+  const leer = async () => {
+    if (!fotoUri || !auth.idToken) return;
+    setLeyendo(true);
+    setError(null);
+    setEtiqueta(null);
+    try {
+      const etq = await leerEtiqueta(fotoUri, auth.idToken);
+      setEtiqueta(etq);
+      setPorciones(etq.porcionesPorEnvase ? String(etq.porcionesPorEnvase) : '1');
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No se pudo leer la etiqueta.');
+    } finally {
+      setLeyendo(false);
+    }
+  };
+
+  const guardarDeEtiqueta = async () => {
+    if (!etiqueta || !auth.idToken) return;
+    const n = parseFloat(porciones.replace(',', '.'));
+    if (!Number.isFinite(n) || n <= 0) {
+      setError('Indica un número de porciones válido.');
+      return;
+    }
+    setGuardandoEtq(true);
+    setError(null);
+    try {
+      const ahora = new Date();
+      const fechaLocal = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
+      const reg = await guardarEtiqueta({ ...etiqueta, porciones: n, tipo, fechaLocal }, auth.idToken);
+      setResultado(reg);
+      setEtiqueta(null);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No se pudo guardar.');
+    } finally {
+      setGuardandoEtq(false);
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.scroll}>
       <View style={styles.container}>
@@ -100,6 +146,24 @@ export default function CaptureScreen({ auth }: Props) {
           <Text style={styles.subtitle}>
             Toma o elige una foto de tu plato y estima sus calorías y macros.
           </Text>
+        </View>
+
+        <View style={styles.modoRow}>
+          {(['plato', 'etiqueta'] as const).map((m) => (
+            <Pressable
+              key={m}
+              onPress={() => {
+                setModo(m);
+                setResultado(null);
+                setEtiqueta(null);
+              }}
+              style={({ pressed }) => [styles.modoChip, modo === m && styles.modoChipActive, pressed && styles.pressed]}
+            >
+              <Text style={[styles.modoChipText, modo === m && styles.modoChipTextActive]}>
+                {m === 'plato' ? 'Analizar plato' : 'Escanear etiqueta'}
+              </Text>
+            </Pressable>
+          ))}
         </View>
 
         <View style={styles.card}>
@@ -141,24 +205,45 @@ export default function CaptureScreen({ auth }: Props) {
           <ActionButton label="Galería" icon="images" variant="secondary" onPress={elegirDeGaleria} />
         </View>
 
-        <Pressable
-          onPress={analizar}
-          disabled={analizarDeshabilitado}
-          style={({ pressed }) => [
-            styles.analyzeBtn,
-            analizarDeshabilitado && styles.analyzeBtnDisabled,
-            pressed && styles.pressed,
-          ]}
-        >
-          {analizando ? (
-            <ActivityIndicator color={colors.bg} />
-          ) : (
-            <View style={styles.analyzeInner}>
-              <Icon name="zap" size={18} color={colors.bg} />
-              <Text style={styles.analyzeBtnText}>Analizar foto</Text>
-            </View>
-          )}
-        </Pressable>
+        {modo === 'plato' ? (
+          <Pressable
+            onPress={analizar}
+            disabled={analizarDeshabilitado}
+            style={({ pressed }) => [
+              styles.analyzeBtn,
+              analizarDeshabilitado && styles.analyzeBtnDisabled,
+              pressed && styles.pressed,
+            ]}
+          >
+            {analizando ? (
+              <ActivityIndicator color={colors.bg} />
+            ) : (
+              <View style={styles.analyzeInner}>
+                <Icon name="zap" size={18} color={colors.bg} />
+                <Text style={styles.analyzeBtnText}>Analizar foto</Text>
+              </View>
+            )}
+          </Pressable>
+        ) : (
+          <Pressable
+            onPress={leer}
+            disabled={!fotoUri || leyendo || !auth.idToken}
+            style={({ pressed }) => [
+              styles.analyzeBtn,
+              (!fotoUri || leyendo || !auth.idToken) && styles.analyzeBtnDisabled,
+              pressed && styles.pressed,
+            ]}
+          >
+            {leyendo ? (
+              <ActivityIndicator color={colors.bg} />
+            ) : (
+              <View style={styles.analyzeInner}>
+                <Icon name="zap" size={18} color={colors.bg} />
+                <Text style={styles.analyzeBtnText}>Leer etiqueta</Text>
+              </View>
+            )}
+          </Pressable>
+        )}
 
         {!auth.idToken && (
           <Text style={styles.loginHint}>Inicia sesión (arriba a la derecha) para analizar tu foto.</Text>
@@ -167,6 +252,35 @@ export default function CaptureScreen({ auth }: Props) {
         {error && (
           <View style={[styles.card, styles.errorCard]}>
             <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
+        {modo === 'etiqueta' && etiqueta && !resultado && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>{etiqueta.nombreProducto ?? 'Producto'}</Text>
+            <Text style={styles.metaLineEtq}>
+              Por porción ({etiqueta.tamPorcion} {etiqueta.unidadPorcion}): {Math.round(etiqueta.caloriasPorPorcion)} kcal ·
+              P {etiqueta.proteinaPorPorcion} g · C {etiqueta.carbosPorPorcion} g · G {etiqueta.grasasPorPorcion} g
+            </Text>
+            {etiqueta.porcionesPorEnvase ? (
+              <Text style={styles.metaLineEtq}>Porciones por envase: {etiqueta.porcionesPorEnvase}</Text>
+            ) : null}
+            <View style={styles.porcionesRow}>
+              <Text style={styles.porcionesLabel}>¿Cuántas porciones?</Text>
+              <TextInput
+                value={porciones}
+                onChangeText={setPorciones}
+                keyboardType="decimal-pad"
+                style={styles.porcionesInput}
+              />
+            </View>
+            <Pressable
+              onPress={guardarDeEtiqueta}
+              disabled={guardandoEtq}
+              style={({ pressed }) => [styles.guardarBtn, guardandoEtq && styles.analyzeBtnDisabled, pressed && styles.pressed]}
+            >
+              {guardandoEtq ? <ActivityIndicator color={colors.bg} /> : <Text style={styles.guardarBtnText}>Guardar</Text>}
+            </Pressable>
           </View>
         )}
 
@@ -369,6 +483,22 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   authLink: { color: colors.accent, fontSize: 13, fontWeight: '600' },
   dim: { opacity: 0.5 },
   actionsRow: { flexDirection: 'row', gap: spacing.sm },
+  modoRow: { flexDirection: 'row', gap: spacing.xs },
+  modoChip: {
+    flex: 1, paddingVertical: spacing.sm, borderRadius: radius.md, alignItems: 'center',
+    backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border,
+  },
+  modoChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  modoChipText: { color: colors.textMuted, fontSize: 14, fontWeight: '700' },
+  modoChipTextActive: { color: colors.bg },
+  metaLineEtq: { color: colors.textMuted, fontSize: 13 },
+  porcionesRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },
+  porcionesLabel: { color: colors.text, fontSize: 14, fontWeight: '600' },
+  porcionesInput: {
+    minWidth: 60, textAlign: 'center', color: colors.text, fontSize: 15, fontWeight: '700',
+    paddingVertical: 4, paddingHorizontal: 8, borderRadius: radius.sm,
+    backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border,
+  },
   tipoRow: { flexDirection: 'row', gap: spacing.xs, flexWrap: 'wrap' },
   tipoChip: {
     paddingVertical: spacing.xs,
