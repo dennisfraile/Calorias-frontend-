@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { GoogleAuthState } from '../auth/useGoogleAuth';
 import { ApiError } from '../api/comidas';
-import { getResumen, type Periodo, type ResumenPeriodos } from '../api/resumen';
+import { getResumen, type BucketResumen, type Periodo, type ResumenPeriodos } from '../api/resumen';
 import { useTheme } from '../theme-context';
 import { radius, spacing, type Palette } from '../theme';
 import { desplazarAncla, enTopeFuturo, etiquetaRango, hoyLocal } from './dashboardFechas';
@@ -24,8 +24,10 @@ export default function DashboardScreen({ auth }: { auth: GoogleAuthState }) {
   const [data, setData] = useState<ResumenPeriodos | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bucketSel, setBucketSel] = useState<number | null>(null);
 
   useEffect(() => {
+    setBucketSel(null);
     if (!auth.idToken) {
       setData(null);
       return;
@@ -110,7 +112,13 @@ export default function DashboardScreen({ auth }: { auth: GoogleAuthState }) {
         {data && !cargando && (
           <>
             <Comparativa data={data} colors={colors} styles={styles} />
-            <Barras data={data} colors={colors} styles={styles} />
+            <Barras
+              data={data}
+              colors={colors}
+              styles={styles}
+              seleccion={bucketSel}
+              onSeleccion={(i) => setBucketSel((prev) => (prev === i ? null : i))}
+            />
             <MacrosVsMeta data={data} colors={colors} styles={styles} />
           </>
         )}
@@ -152,7 +160,19 @@ function Comparativa({ data, colors, styles }: { data: ResumenPeriodos; colors: 
   );
 }
 
-function Barras({ data, colors, styles }: { data: ResumenPeriodos; colors: Palette; styles: Estilos }) {
+function Barras({
+  data,
+  colors,
+  styles,
+  seleccion,
+  onSeleccion,
+}: {
+  data: ResumenPeriodos;
+  colors: Palette;
+  styles: Estilos;
+  seleccion: number | null;
+  onSeleccion: (i: number) => void;
+}) {
   const { actual, anterior, meta } = data;
   const H = 160;
   const maxKcal = Math.max(
@@ -171,17 +191,27 @@ function Barras({ data, colors, styles }: { data: ResumenPeriodos; colors: Palet
             const ha = (b.kcal / maxKcal) * H;
             const hp = ((anterior.buckets[i]?.kcal ?? 0) / maxKcal) * H;
             return (
-              <View key={i} style={styles.barPair}>
+              <Pressable key={i} onPress={() => onSeleccion(i)} style={styles.barPair}>
                 <View style={[styles.barAnterior, { height: hp }]} />
-                <View style={[styles.barActual, { height: ha }]} />
-              </View>
+                <View
+                  style={[
+                    styles.barActual,
+                    { height: ha },
+                    seleccion === i && { backgroundColor: colors.accent },
+                  ]}
+                />
+              </Pressable>
             );
           })}
         </View>
       </View>
       <View style={styles.labelsRow}>
         {actual.buckets.map((b, i) => (
-          <Text key={i} style={styles.barLabel} numberOfLines={1}>
+          <Text
+            key={i}
+            style={[styles.barLabel, seleccion === i && { color: colors.text, fontWeight: '700' }]}
+            numberOfLines={1}
+          >
             {b.etiqueta}
           </Text>
         ))}
@@ -191,6 +221,36 @@ function Barras({ data, colors, styles }: { data: ResumenPeriodos; colors: Palet
         <Leyenda color={colors.textMuted} text="Anterior" styles={styles} />
         {meta && <Leyenda color={colors.accent} text="Meta" styles={styles} />}
       </View>
+      {seleccion != null && actual.buckets[seleccion] && (
+        <BucketDetalle
+          actual={actual.buckets[seleccion]}
+          anterior={anterior.buckets[seleccion]}
+          styles={styles}
+        />
+      )}
+    </View>
+  );
+}
+
+function BucketDetalle({
+  actual,
+  anterior,
+  styles,
+}: {
+  actual: BucketResumen;
+  anterior?: BucketResumen;
+  styles: Estilos;
+}) {
+  return (
+    <View style={styles.detalleBucket}>
+      <Text style={styles.detalleBucketTitulo}>{actual.etiqueta}</Text>
+      <View style={styles.detalleBucketRow}>
+        <Text style={styles.detalleBucketKcal}>{actual.kcal} kcal</Text>
+        {anterior && <Text style={styles.detalleBucketAnt}>(anterior: {anterior.kcal} kcal)</Text>}
+      </View>
+      <Text style={styles.detalleBucketMacros}>
+        P {actual.proteinaG} g · C {actual.carbosG} g · G {actual.grasasG} g
+      </Text>
     </View>
   );
 }
@@ -306,5 +366,14 @@ const makeStyles = (colors: Palette) =>
     macroBarBg: { flex: 1, height: 10, borderRadius: 5, backgroundColor: colors.surfaceAlt, overflow: 'hidden' },
     macroBarFill: { height: '100%', borderRadius: 5 },
     macroVal: { color: colors.textMuted, fontSize: 12, width: 80, textAlign: 'right' },
+    detalleBucket: {
+      marginTop: spacing.sm, paddingTop: spacing.sm,
+      borderTopWidth: 1, borderTopColor: colors.border, gap: 2,
+    },
+    detalleBucketTitulo: { color: colors.text, fontSize: 14, fontWeight: '700' },
+    detalleBucketRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.xs },
+    detalleBucketKcal: { color: colors.primary, fontSize: 18, fontWeight: '800' },
+    detalleBucketAnt: { color: colors.textMuted, fontSize: 12 },
+    detalleBucketMacros: { color: colors.textMuted, fontSize: 13 },
     pressed: { opacity: 0.7 },
   });
