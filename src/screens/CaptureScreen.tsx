@@ -6,10 +6,19 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { analizarFoto, ApiError, type RegistroComida, type TipoComida } from '../api/comidas';
+import {
+  analizarFoto,
+  actualizarPorciones,
+  ApiError,
+  type CorreccionPorcion,
+  type DetalleComida,
+  type RegistroComida,
+  type TipoComida,
+} from '../api/comidas';
 import type { GoogleAuthState } from '../auth/useGoogleAuth';
 import Icon, { type IconName } from '../components/Icon';
 import { radius, spacing, type Palette } from '../theme';
@@ -161,37 +170,133 @@ export default function CaptureScreen({ auth }: Props) {
           </View>
         )}
 
-        {resultado && <ResultadoCard registro={resultado} />}
+        {resultado && (
+          <ResultadoCard
+            registro={resultado}
+            idToken={auth.idToken}
+            onActualizado={setResultado}
+          />
+        )}
       </View>
     </ScrollView>
   );
 }
 
-function ResultadoCard({ registro }: { registro: RegistroComida }) {
+function ResultadoCard({
+  registro,
+  idToken,
+  onActualizado,
+}: {
+  registro: RegistroComida;
+  idToken: string | null;
+  onActualizado: (r: RegistroComida) => void;
+}) {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
-  const detalles = registro.detalles ?? [];
+
+  const detallesBase = registro.detalles ?? [];
+  const [gramos, setGramos] = useState<Record<string, number>>(() =>
+    Object.fromEntries(
+      detallesBase
+        .filter((d) => d.detalleId)
+        .map((d) => [d.detalleId as string, Math.round(d.cantidad ?? 100)]),
+    ),
+  );
+  const [guardando, setGuardando] = useState(false);
+  const [errGuardar, setErrGuardar] = useState<string | null>(null);
+
+  const factor = (d: DetalleComida) => {
+    const orig = d.cantidad ?? 100;
+    const actual = gramos[d.detalleId as string] ?? orig;
+    return orig > 0 ? actual / orig : 1;
+  };
+
+  const visibles = detallesBase.filter((d) => (gramos[d.detalleId as string] ?? 1) > 0);
+  const totalKcal = visibles.reduce((s, d) => s + (d.calorias ?? 0) * factor(d), 0);
+  const totalProt = visibles.reduce((s, d) => s + (d.proteinas ?? 0) * factor(d), 0);
+  const totalCarb = visibles.reduce((s, d) => s + (d.carbohidratos ?? 0) * factor(d), 0);
+  const totalGra = visibles.reduce((s, d) => s + (d.grasas ?? 0) * factor(d), 0);
+
+  const setG = (id: string, v: number) => setGramos((g) => ({ ...g, [id]: Math.max(0, v) }));
+
+  const guardar = async () => {
+    if (!idToken || !registro.id) return;
+    setGuardando(true);
+    setErrGuardar(null);
+    try {
+      const correcciones: CorreccionPorcion[] = detallesBase
+        .filter((d) => d.detalleId)
+        .map((d) => ({ detalleId: d.detalleId as string, cantidadG: gramos[d.detalleId as string] ?? 0 }));
+      const actualizado = await actualizarPorciones(registro.id, idToken, correcciones);
+      onActualizado(actualizado);
+    } catch (e) {
+      setErrGuardar(e instanceof ApiError ? e.message : 'No se pudieron guardar las correcciones.');
+    } finally {
+      setGuardando(false);
+    }
+  };
+
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>Resultado</Text>
       <View style={styles.macroRow}>
-        <Macro label="kcal" value={registro.caloriasTotales} />
-        <Macro label="Prot" value={registro.proteinasTotales} suffix="g" />
-        <Macro label="Carbs" value={registro.carbohidratosTotales} suffix="g" />
-        <Macro label="Grasas" value={registro.grasasTotales} suffix="g" />
+        <Macro label="kcal" value={totalKcal} />
+        <Macro label="Prot" value={totalProt} suffix="g" />
+        <Macro label="Carbs" value={totalCarb} suffix="g" />
+        <Macro label="Grasas" value={totalGra} suffix="g" />
       </View>
-      {detalles.length > 0 && (
-        <View style={styles.detalleList}>
-          {detalles.map((d, i) => (
-            <View key={`${d.nombre ?? 'item'}-${i}`} style={styles.detalleRow}>
-              <Text style={styles.detalleNombre}>{d.nombre ?? 'Alimento'}</Text>
-              <Text style={styles.detalleKcal}>
-                {d.calorias != null ? `${Math.round(d.calorias)} kcal` : '—'}
-              </Text>
+
+      <View style={styles.detalleList}>
+        {detallesBase.map((d, i) => {
+          const id = d.detalleId as string;
+          const g = gramos[id] ?? Math.round(d.cantidad ?? 100);
+          const eliminado = g <= 0;
+          return (
+            <View key={id ?? i} style={styles.editRow}>
+              <View style={styles.editNombreCol}>
+                <Text style={[styles.detalleNombre, eliminado && styles.eliminado]}>
+                  {d.nombre ?? 'Alimento'}
+                </Text>
+                <Text style={styles.editKcal}>
+                  {eliminado ? 'Eliminado' : `${Math.round((d.calorias ?? 0) * factor(d))} kcal`}
+                </Text>
+              </View>
+              <View style={styles.editControls}>
+                <Pressable onPress={() => setG(id, g - 10)} style={styles.stepBtn}>
+                  <Text style={styles.stepBtnText}>−</Text>
+                </Pressable>
+                <TextInput
+                  value={String(g)}
+                  onChangeText={(t) => setG(id, parseInt(t.replace(/[^0-9]/g, '') || '0', 10))}
+                  keyboardType="numeric"
+                  style={styles.gramInput}
+                />
+                <Text style={styles.gramUnidad}>g</Text>
+                <Pressable onPress={() => setG(id, g + 10)} style={styles.stepBtn}>
+                  <Text style={styles.stepBtnText}>+</Text>
+                </Pressable>
+                <Pressable onPress={() => setG(id, 0)} style={styles.removeBtn}>
+                  <Text style={styles.removeBtnText}>✕</Text>
+                </Pressable>
+              </View>
             </View>
-          ))}
-        </View>
-      )}
+          );
+        })}
+      </View>
+
+      {errGuardar && <Text style={styles.errorText}>{errGuardar}</Text>}
+
+      <Pressable
+        onPress={guardar}
+        disabled={guardando || !idToken}
+        style={({ pressed }) => [styles.guardarBtn, (guardando || !idToken) && styles.analyzeBtnDisabled, pressed && styles.pressed]}
+      >
+        {guardando ? (
+          <ActivityIndicator color={colors.bg} />
+        ) : (
+          <Text style={styles.guardarBtnText}>Guardar correcciones</Text>
+        )}
+      </Pressable>
     </View>
   );
 }
@@ -344,4 +449,30 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   },
   detalleNombre: { color: colors.text, fontSize: 14, flexShrink: 1 },
   detalleKcal: { color: colors.textMuted, fontSize: 14 },
+  editRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, gap: spacing.sm,
+  },
+  editNombreCol: { flexShrink: 1, gap: 2 },
+  editKcal: { color: colors.textMuted, fontSize: 12 },
+  eliminado: { textDecorationLine: 'line-through', color: colors.textMuted },
+  editControls: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  stepBtn: {
+    width: 30, height: 30, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border,
+  },
+  stepBtnText: { color: colors.text, fontSize: 18, fontWeight: '800', lineHeight: 20 },
+  gramInput: {
+    minWidth: 44, textAlign: 'center', color: colors.text, fontSize: 14, fontWeight: '700',
+    paddingVertical: 2, paddingHorizontal: 4, borderRadius: radius.sm,
+    backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border,
+  },
+  gramUnidad: { color: colors.textMuted, fontSize: 12 },
+  removeBtn: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
+  removeBtnText: { color: colors.danger, fontSize: 14, fontWeight: '800' },
+  guardarBtn: {
+    backgroundColor: colors.primary, borderRadius: radius.md, paddingVertical: spacing.sm,
+    alignItems: 'center', justifyContent: 'center', minHeight: 44, marginTop: spacing.xs,
+  },
+  guardarBtnText: { color: colors.bg, fontWeight: '800', fontSize: 15 },
 });

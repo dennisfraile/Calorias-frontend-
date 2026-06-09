@@ -1,13 +1,16 @@
 import { Platform } from 'react-native';
-import { ANALIZAR_URL } from '../config';
+import { ANALIZAR_URL, API_BASE_URL } from '../config';
 
-/** Un alimento detectado dentro de una comida (forma aproximada del DTO del backend). */
+/** Un alimento detectado dentro de una comida (forma del DTO del backend). */
 export interface DetalleComida {
+  detalleId?: string;
   nombre?: string;
   calorias?: number;
   proteinas?: number;
   carbohidratos?: number;
   grasas?: number;
+  cantidad?: number;
+  unidad?: string;
 }
 
 /** Resultado de analizar una foto: totales agregados + detalle por alimento. */
@@ -119,4 +122,41 @@ function inferirMime(nombre: string): string {
     default:
       return 'image/jpeg';
   }
+}
+
+export interface CorreccionPorcion {
+  detalleId: string;
+  cantidadG: number;
+}
+
+/** Corrige las porciones de una comida ya guardada y devuelve el registro actualizado. */
+export async function actualizarPorciones(
+  registroId: string,
+  idToken: string,
+  correcciones: CorreccionPorcion[],
+): Promise<RegistroComida> {
+  const url = `${API_BASE_URL}/api/comidas/${registroId}/porciones`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ detalles: correcciones }),
+    });
+  } catch (e) {
+    throw new ApiError(
+      `No se pudo conectar con el backend (${url}). ${e instanceof Error ? e.message : ''}`,
+      0,
+    );
+  }
+  if (!res.ok) {
+    const detalle = await res.text().catch(() => '');
+    if (res.status === 401) throw new ApiError('No autorizado (401).', 401);
+    throw new ApiError(`El backend respondió ${res.status}. ${detalle.slice(0, 300)}`, res.status);
+  }
+  return (await res.json()) as RegistroComida;
 }
