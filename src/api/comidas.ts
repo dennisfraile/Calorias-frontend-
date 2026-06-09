@@ -160,3 +160,78 @@ export async function actualizarPorciones(
   }
   return (await res.json()) as RegistroComida;
 }
+
+export interface EtiquetaNutricional {
+  nombreProducto?: string;
+  tamPorcion: number;
+  unidadPorcion: string;
+  porcionesPorEnvase?: number | null;
+  caloriasPorPorcion: number;
+  proteinaPorPorcion: number;
+  carbosPorPorcion: number;
+  grasasPorPorcion: number;
+}
+
+/** Lee una etiqueta nutricional (no guarda). */
+export async function leerEtiqueta(fotoUri: string, idToken: string): Promise<EtiquetaNutricional> {
+  const nombre = fotoUri.split('/').pop() || `etiqueta-${Date.now()}.jpg`;
+  const form = new FormData();
+  if (Platform.OS === 'web') {
+    const blob = await (await fetch(fotoUri)).blob();
+    form.append('foto', blob, nombre);
+  } else {
+    form.append('foto', { uri: fotoUri, name: nombre, type: inferirMime(nombre) } as unknown as Blob);
+  }
+
+  const url = `${API_BASE_URL}/api/comidas/leer-etiqueta`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${idToken}`, Accept: 'application/json' },
+      body: form,
+    });
+  } catch (e) {
+    throw new ApiError(`No se pudo conectar con el backend (${url}). ${e instanceof Error ? e.message : ''}`, 0);
+  }
+  if (!res.ok) {
+    const detalle = await res.text().catch(() => '');
+    if (res.status === 401) throw new ApiError('No autorizado (401).', 401);
+    throw new ApiError(detalle.slice(0, 300) || `El backend respondió ${res.status}.`, res.status);
+  }
+  return (await res.json()) as EtiquetaNutricional;
+}
+
+export interface GuardarEtiquetaPayload extends EtiquetaNutricional {
+  porciones: number;
+  tipo: TipoComida;
+  fechaLocal: string;
+}
+
+/** Guarda una comida desde los datos de una etiqueta + porciones. */
+export async function guardarEtiqueta(
+  payload: GuardarEtiquetaPayload,
+  idToken: string,
+): Promise<RegistroComida> {
+  const url = `${API_BASE_URL}/api/comidas/guardar-etiqueta`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (e) {
+    throw new ApiError(`No se pudo conectar con el backend (${url}). ${e instanceof Error ? e.message : ''}`, 0);
+  }
+  if (!res.ok) {
+    const detalle = await res.text().catch(() => '');
+    if (res.status === 401) throw new ApiError('No autorizado (401).', 401);
+    throw new ApiError(detalle.slice(0, 300) || `El backend respondió ${res.status}.`, res.status);
+  }
+  return (await res.json()) as RegistroComida;
+}
