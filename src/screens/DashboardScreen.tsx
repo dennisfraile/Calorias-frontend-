@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { GoogleAuthState } from '../auth/useGoogleAuth';
 import { ApiError } from '../api/comidas';
-import { getResumen, type Periodo, type ResumenPeriodos } from '../api/resumen';
+import { getResumen, type BucketResumen, type Periodo, type ResumenPeriodos } from '../api/resumen';
 import { useTheme } from '../theme-context';
 import { radius, spacing, type Palette } from '../theme';
+import { desplazarAncla, enTopeFuturo, etiquetaRango, hoyLocal } from './dashboardFechas';
 
 const PERIODOS: { key: Periodo; label: string }[] = [
   { key: 'diario', label: 'Día' },
@@ -15,20 +16,18 @@ const PERIODOS: { key: Periodo; label: string }[] = [
   { key: 'anual', label: 'Año' },
 ];
 
-function hoyLocal(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
 export default function DashboardScreen({ auth }: { auth: GoogleAuthState }) {
   const { colors } = useTheme();
   const styles = makeStyles(colors);
   const [periodo, setPeriodo] = useState<Periodo>('semanal');
+  const [ancla, setAncla] = useState<string>(hoyLocal());
   const [data, setData] = useState<ResumenPeriodos | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bucketSel, setBucketSel] = useState<number | null>(null);
 
   useEffect(() => {
+    setBucketSel(null);
     if (!auth.idToken) {
       setData(null);
       return;
@@ -36,7 +35,7 @@ export default function DashboardScreen({ auth }: { auth: GoogleAuthState }) {
     let activo = true;
     setCargando(true);
     setError(null);
-    getResumen(auth.idToken, periodo, hoyLocal())
+    getResumen(auth.idToken, periodo, ancla)
       .then((r) => {
         if (activo) setData(r);
       })
@@ -49,7 +48,7 @@ export default function DashboardScreen({ auth }: { auth: GoogleAuthState }) {
     return () => {
       activo = false;
     };
-  }, [auth.idToken, periodo]);
+  }, [auth.idToken, periodo, ancla]);
 
   if (!auth.idToken) {
     return (
@@ -80,13 +79,46 @@ export default function DashboardScreen({ auth }: { auth: GoogleAuthState }) {
           ))}
         </View>
 
+        <View style={styles.navFechas}>
+          <Pressable
+            onPress={() => setAncla((a) => desplazarAncla(a, periodo, -1))}
+            style={({ pressed }) => [styles.navBtn, pressed && styles.pressed]}
+          >
+            <Text style={styles.navBtnText}>‹</Text>
+          </Pressable>
+          <Text style={styles.navLabel}>{etiquetaRango(ancla, periodo)}</Text>
+          <Pressable
+            disabled={enTopeFuturo(ancla, periodo)}
+            onPress={() => setAncla((a) => desplazarAncla(a, periodo, 1))}
+            style={({ pressed }) => [
+              styles.navBtn,
+              enTopeFuturo(ancla, periodo) && styles.navBtnDisabled,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={styles.navBtnText}>›</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setAncla(hoyLocal())}
+            style={({ pressed }) => [styles.hoyBtn, pressed && styles.pressed]}
+          >
+            <Text style={styles.hoyBtnText}>Hoy</Text>
+          </Pressable>
+        </View>
+
         {cargando && <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.lg }} />}
         {error && <Text style={styles.error}>{error}</Text>}
 
         {data && !cargando && (
           <>
             <Comparativa data={data} colors={colors} styles={styles} />
-            <Barras data={data} colors={colors} styles={styles} />
+            <Barras
+              data={data}
+              colors={colors}
+              styles={styles}
+              seleccion={bucketSel}
+              onSeleccion={(i) => setBucketSel((prev) => (prev === i ? null : i))}
+            />
             <MacrosVsMeta data={data} colors={colors} styles={styles} />
           </>
         )}
@@ -128,7 +160,19 @@ function Comparativa({ data, colors, styles }: { data: ResumenPeriodos; colors: 
   );
 }
 
-function Barras({ data, colors, styles }: { data: ResumenPeriodos; colors: Palette; styles: Estilos }) {
+function Barras({
+  data,
+  colors,
+  styles,
+  seleccion,
+  onSeleccion,
+}: {
+  data: ResumenPeriodos;
+  colors: Palette;
+  styles: Estilos;
+  seleccion: number | null;
+  onSeleccion: (i: number) => void;
+}) {
   const { actual, anterior, meta } = data;
   const H = 160;
   const maxKcal = Math.max(
@@ -147,17 +191,27 @@ function Barras({ data, colors, styles }: { data: ResumenPeriodos; colors: Palet
             const ha = (b.kcal / maxKcal) * H;
             const hp = ((anterior.buckets[i]?.kcal ?? 0) / maxKcal) * H;
             return (
-              <View key={i} style={styles.barPair}>
+              <Pressable key={i} onPress={() => onSeleccion(i)} style={styles.barPair}>
                 <View style={[styles.barAnterior, { height: hp }]} />
-                <View style={[styles.barActual, { height: ha }]} />
-              </View>
+                <View
+                  style={[
+                    styles.barActual,
+                    { height: ha },
+                    seleccion === i && { backgroundColor: colors.accent },
+                  ]}
+                />
+              </Pressable>
             );
           })}
         </View>
       </View>
       <View style={styles.labelsRow}>
         {actual.buckets.map((b, i) => (
-          <Text key={i} style={styles.barLabel} numberOfLines={1}>
+          <Text
+            key={i}
+            style={[styles.barLabel, seleccion === i && { color: colors.text, fontWeight: '700' }]}
+            numberOfLines={1}
+          >
             {b.etiqueta}
           </Text>
         ))}
@@ -167,6 +221,36 @@ function Barras({ data, colors, styles }: { data: ResumenPeriodos; colors: Palet
         <Leyenda color={colors.textMuted} text="Anterior" styles={styles} />
         {meta && <Leyenda color={colors.accent} text="Meta" styles={styles} />}
       </View>
+      {seleccion != null && actual.buckets[seleccion] && (
+        <BucketDetalle
+          actual={actual.buckets[seleccion]}
+          anterior={anterior.buckets[seleccion]}
+          styles={styles}
+        />
+      )}
+    </View>
+  );
+}
+
+function BucketDetalle({
+  actual,
+  anterior,
+  styles,
+}: {
+  actual: BucketResumen;
+  anterior?: BucketResumen;
+  styles: Estilos;
+}) {
+  return (
+    <View style={styles.detalleBucket}>
+      <Text style={styles.detalleBucketTitulo}>{actual.etiqueta}</Text>
+      <View style={styles.detalleBucketRow}>
+        <Text style={styles.detalleBucketKcal}>{actual.kcal} kcal</Text>
+        {anterior && <Text style={styles.detalleBucketAnt}>(anterior: {anterior.kcal} kcal)</Text>}
+      </View>
+      <Text style={styles.detalleBucketMacros}>
+        P {actual.proteinaG} g · C {actual.carbosG} g · G {actual.grasasG} g
+      </Text>
     </View>
   );
 }
@@ -236,6 +320,19 @@ const makeStyles = (colors: Palette) =>
     tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     tabText: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
     tabTextActive: { color: colors.bg },
+    navFechas: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
+    navBtn: {
+      width: 36, height: 36, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center',
+      backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border,
+    },
+    navBtnDisabled: { opacity: 0.35 },
+    navBtnText: { color: colors.text, fontSize: 20, fontWeight: '800', lineHeight: 22 },
+    navLabel: { color: colors.text, fontSize: 14, fontWeight: '700', minWidth: 130, textAlign: 'center' },
+    hoyBtn: {
+      paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.md,
+      backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border,
+    },
+    hoyBtnText: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
     card: {
       backgroundColor: colors.surface,
       borderColor: colors.border,
@@ -269,5 +366,14 @@ const makeStyles = (colors: Palette) =>
     macroBarBg: { flex: 1, height: 10, borderRadius: 5, backgroundColor: colors.surfaceAlt, overflow: 'hidden' },
     macroBarFill: { height: '100%', borderRadius: 5 },
     macroVal: { color: colors.textMuted, fontSize: 12, width: 80, textAlign: 'right' },
+    detalleBucket: {
+      marginTop: spacing.sm, paddingTop: spacing.sm,
+      borderTopWidth: 1, borderTopColor: colors.border, gap: 2,
+    },
+    detalleBucketTitulo: { color: colors.text, fontSize: 14, fontWeight: '700' },
+    detalleBucketRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.xs },
+    detalleBucketKcal: { color: colors.primary, fontSize: 18, fontWeight: '800' },
+    detalleBucketAnt: { color: colors.textMuted, fontSize: 12 },
+    detalleBucketMacros: { color: colors.textMuted, fontSize: 13 },
     pressed: { opacity: 0.7 },
   });
