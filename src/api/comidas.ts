@@ -161,15 +161,18 @@ export async function actualizarPorciones(
   return (await res.json()) as RegistroComida;
 }
 
+export type BaseEtiqueta = 'porcion' | 'cien';
+
 export interface EtiquetaNutricional {
   nombreProducto?: string;
   tamPorcion: number;
   unidadPorcion: string;
   porcionesPorEnvase?: number | null;
-  caloriasPorPorcion: number;
-  proteinaPorPorcion: number;
-  carbosPorPorcion: number;
-  grasasPorPorcion: number;
+  base: BaseEtiqueta;
+  caloriasPorBase: number;
+  proteinaPorBase: number;
+  carbosPorBase: number;
+  grasasPorBase: number;
 }
 
 /** Lee una etiqueta nutricional (no guarda). */
