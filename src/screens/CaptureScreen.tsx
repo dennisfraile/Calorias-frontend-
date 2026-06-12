@@ -22,6 +22,8 @@ import {
   type RegistroComida,
   type TipoComida,
 } from '../api/comidas';
+import { convertirMacros, totalEtiqueta } from './etiquetaCalculos';
+import type { BaseEtiqueta } from '../api/comidas';
 import type { GoogleAuthState } from '../auth/useGoogleAuth';
 import Icon, { type IconName } from '../components/Icon';
 import { radius, spacing, type Palette } from '../theme';
@@ -45,10 +47,11 @@ export default function CaptureScreen({ auth }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [tipo, setTipo] = useState<TipoComida>('Almuerzo');
   const [modo, setModo] = useState<'plato' | 'etiqueta'>('plato');
-  const [etiqueta, setEtiqueta] = useState<EtiquetaNutricional | null>(null);
   const [porciones, setPorciones] = useState<string>('1');
   const [leyendo, setLeyendo] = useState(false);
   const [guardandoEtq, setGuardandoEtq] = useState(false);
+  // Borrador editable de la etiqueta leída (todo editable antes de guardar).
+  const [borrador, setBorrador] = useState<EtiquetaNutricional | null>(null);
 
   const tomarFoto = async () => {
     setError(null);
@@ -104,10 +107,10 @@ export default function CaptureScreen({ auth }: Props) {
     if (!fotoUri || !auth.idToken) return;
     setLeyendo(true);
     setError(null);
-    setEtiqueta(null);
+    setBorrador(null);
     try {
       const etq = await leerEtiqueta(fotoUri, auth.idToken);
-      setEtiqueta(etq);
+      setBorrador(etq);
       setPorciones(etq.porcionesPorEnvase ? String(etq.porcionesPorEnvase) : '1');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo leer la etiqueta.');
@@ -117,7 +120,7 @@ export default function CaptureScreen({ auth }: Props) {
   };
 
   const guardarDeEtiqueta = async () => {
-    if (!etiqueta || !auth.idToken) return;
+    if (!borrador || !auth.idToken) return;
     const n = parseFloat(porciones.replace(',', '.'));
     if (!Number.isFinite(n) || n <= 0) {
       setError('Indica un número de porciones válido.');
@@ -128,9 +131,9 @@ export default function CaptureScreen({ auth }: Props) {
     try {
       const ahora = new Date();
       const fechaLocal = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
-      const reg = await guardarEtiqueta({ ...etiqueta, porciones: n, tipo, fechaLocal }, auth.idToken);
+      const reg = await guardarEtiqueta({ ...borrador, porciones: n, tipo, fechaLocal }, auth.idToken);
       setResultado(reg);
-      setEtiqueta(null);
+      setBorrador(null);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo guardar.');
     } finally {
@@ -155,7 +158,7 @@ export default function CaptureScreen({ auth }: Props) {
               onPress={() => {
                 setModo(m);
                 setResultado(null);
-                setEtiqueta(null);
+                setBorrador(null);
               }}
               style={({ pressed }) => [styles.modoChip, modo === m && styles.modoChipActive, pressed && styles.pressed]}
             >
@@ -205,6 +208,10 @@ export default function CaptureScreen({ auth }: Props) {
           <ActionButton label="Galería" icon="images" variant="secondary" onPress={elegirDeGaleria} />
         </View>
 
+        {modo === 'etiqueta' && !borrador && (
+          <Text style={styles.encuadreHint}>💡 Enfoca la tabla de información nutricional completa.</Text>
+        )}
+
         {modo === 'plato' ? (
           <Pressable
             onPress={analizar}
@@ -251,37 +258,26 @@ export default function CaptureScreen({ auth }: Props) {
 
         {error && (
           <View style={[styles.card, styles.errorCard]}>
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={styles.errorTitle}>{error}</Text>
+            {modo === 'etiqueta' && (
+              <View style={styles.guiaList}>
+                <Text style={styles.guiaItem}>• Encuadra la tabla nutricional completa</Text>
+                <Text style={styles.guiaItem}>• Que la foto esté enfocada y sin reflejos</Text>
+                <Text style={styles.guiaItem}>• El texto derecho (no muy inclinado)</Text>
+              </View>
+            )}
           </View>
         )}
 
-        {modo === 'etiqueta' && etiqueta && !resultado && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>{etiqueta.nombreProducto ?? 'Producto'}</Text>
-            <Text style={styles.metaLineEtq}>
-              Por porción ({etiqueta.tamPorcion} {etiqueta.unidadPorcion}): {Math.round(etiqueta.caloriasPorPorcion)} kcal ·
-              P {etiqueta.proteinaPorPorcion} g · C {etiqueta.carbosPorPorcion} g · G {etiqueta.grasasPorPorcion} g
-            </Text>
-            {etiqueta.porcionesPorEnvase ? (
-              <Text style={styles.metaLineEtq}>Porciones por envase: {etiqueta.porcionesPorEnvase}</Text>
-            ) : null}
-            <View style={styles.porcionesRow}>
-              <Text style={styles.porcionesLabel}>¿Cuántas porciones?</Text>
-              <TextInput
-                value={porciones}
-                onChangeText={setPorciones}
-                keyboardType="decimal-pad"
-                style={styles.porcionesInput}
-              />
-            </View>
-            <Pressable
-              onPress={guardarDeEtiqueta}
-              disabled={guardandoEtq}
-              style={({ pressed }) => [styles.guardarBtn, guardandoEtq && styles.analyzeBtnDisabled, pressed && styles.pressed]}
-            >
-              {guardandoEtq ? <ActivityIndicator color={colors.bg} /> : <Text style={styles.guardarBtnText}>Guardar</Text>}
-            </Pressable>
-          </View>
+        {modo === 'etiqueta' && borrador && !resultado && (
+          <EtiquetaEditor
+            borrador={borrador}
+            setBorrador={setBorrador}
+            porciones={porciones}
+            setPorciones={setPorciones}
+            guardando={guardandoEtq}
+            onGuardar={guardarDeEtiqueta}
+          />
         )}
 
         {resultado && (
@@ -462,6 +458,142 @@ function ActionButton({
   );
 }
 
+function EtiquetaEditor({
+  borrador,
+  setBorrador,
+  porciones,
+  setPorciones,
+  guardando,
+  onGuardar,
+}: {
+  borrador: EtiquetaNutricional;
+  setBorrador: (e: EtiquetaNutricional) => void;
+  porciones: string;
+  setPorciones: (s: string) => void;
+  guardando: boolean;
+  onGuardar: () => void;
+}) {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
+
+  type CampoNum = 'tamPorcion' | 'caloriasPorBase' | 'proteinaPorBase' | 'carbosPorBase' | 'grasasPorBase';
+  const setNum = (campo: CampoNum, txt: string) => {
+    const v = parseFloat(txt.replace(',', '.'));
+    setBorrador({ ...borrador, [campo]: Number.isFinite(v) ? v : 0 });
+  };
+
+  const cambiarBase = (nueva: BaseEtiqueta) => {
+    if (nueva === borrador.base) return;
+    const conv = convertirMacros(borrador, borrador.base, nueva, borrador.tamPorcion, borrador.unidadPorcion);
+    setBorrador({ ...borrador, ...conv, base: nueva });
+  };
+
+  const n = parseFloat(porciones.replace(',', '.'));
+  const total = totalEtiqueta(borrador, Number.isFinite(n) ? n : 0);
+
+  const unidadBase = /^ml$/i.test(borrador.unidadPorcion.trim()) ? 'mL' : 'g';
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>Datos de la etiqueta</Text>
+
+      <View>
+        <Text style={styles.editLabel}>Nombre</Text>
+        <TextInput
+          value={borrador.nombreProducto ?? ''}
+          onChangeText={(t) => setBorrador({ ...borrador, nombreProducto: t })}
+          placeholder="Producto"
+          placeholderTextColor={colors.textMuted}
+          style={styles.textField}
+        />
+      </View>
+
+      <View style={styles.fieldRow}>
+        <View style={styles.fieldCol}>
+          <Text style={styles.editLabel}>Tam. porción</Text>
+          <TextInput
+            value={String(borrador.tamPorcion)}
+            onChangeText={(t) => setNum('tamPorcion', t)}
+            keyboardType="decimal-pad"
+            style={styles.textField}
+          />
+        </View>
+        <View style={styles.fieldCol}>
+          <Text style={styles.editLabel}>Unidad</Text>
+          <TextInput
+            value={borrador.unidadPorcion}
+            onChangeText={(t) => setBorrador({ ...borrador, unidadPorcion: t })}
+            style={styles.textField}
+          />
+        </View>
+      </View>
+
+      <View>
+        <Text style={styles.editLabel}>Macros</Text>
+        <View style={styles.baseRow}>
+          {(['porcion', 'cien'] as BaseEtiqueta[]).map((b) => (
+            <Pressable
+              key={b}
+              onPress={() => cambiarBase(b)}
+              style={({ pressed }) => [styles.baseChip, borrador.base === b && styles.baseChipActive, pressed && styles.pressed]}
+            >
+              <Text style={[styles.baseChipText, borrador.base === b && styles.baseChipTextActive]}>
+                {b === 'porcion' ? 'por porción' : `por 100 ${unidadBase}`}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        <View style={styles.macroInputsRow}>
+          <MacroInput label="kcal" value={borrador.caloriasPorBase} onChange={(t) => setNum('caloriasPorBase', t)} />
+          <MacroInput label="P" value={borrador.proteinaPorBase} onChange={(t) => setNum('proteinaPorBase', t)} />
+          <MacroInput label="C" value={borrador.carbosPorBase} onChange={(t) => setNum('carbosPorBase', t)} />
+          <MacroInput label="G" value={borrador.grasasPorBase} onChange={(t) => setNum('grasasPorBase', t)} />
+        </View>
+      </View>
+
+      <View style={styles.porcionesRow}>
+        <Text style={styles.porcionesLabel}>Porciones</Text>
+        <TextInput
+          value={porciones}
+          onChangeText={setPorciones}
+          keyboardType="decimal-pad"
+          style={styles.porcionesInput}
+        />
+      </View>
+
+      <View style={styles.totalRow}>
+        <Text style={styles.totalText}>
+          Total: {Math.round(total.kcal)} kcal · P {Math.round(total.prot)} · C {Math.round(total.carb)} · G {Math.round(total.gra)}
+        </Text>
+      </View>
+
+      <Pressable
+        onPress={onGuardar}
+        disabled={guardando}
+        style={({ pressed }) => [styles.guardarBtn, guardando && styles.analyzeBtnDisabled, pressed && styles.pressed]}
+      >
+        {guardando ? <ActivityIndicator color={colors.bg} /> : <Text style={styles.guardarBtnText}>Guardar</Text>}
+      </Pressable>
+    </View>
+  );
+}
+
+function MacroInput({ label, value, onChange }: { label: string; value: number; onChange: (t: string) => void }) {
+  const { colors } = useTheme();
+  const styles = makeStyles(colors);
+  return (
+    <View style={styles.macroInputCol}>
+      <TextInput
+        value={String(value)}
+        onChangeText={onChange}
+        keyboardType="decimal-pad"
+        style={styles.macroInput}
+      />
+      <Text style={styles.macroInputLabel}>{label}</Text>
+    </View>
+  );
+}
+
 const makeStyles = (colors: Palette) => StyleSheet.create({
   scroll: { padding: spacing.lg, paddingBottom: spacing.xl },
   container: { width: '100%', maxWidth: 720, alignSelf: 'center', gap: spacing.md },
@@ -491,7 +623,6 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   modoChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   modoChipText: { color: colors.textMuted, fontSize: 14, fontWeight: '700' },
   modoChipTextActive: { color: colors.bg },
-  metaLineEtq: { color: colors.textMuted, fontSize: 13 },
   porcionesRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },
   porcionesLabel: { color: colors.text, fontSize: 14, fontWeight: '600' },
   porcionesInput: {
@@ -605,4 +736,33 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', minHeight: 44, marginTop: spacing.xs,
   },
   guardarBtnText: { color: colors.bg, fontWeight: '800', fontSize: 15 },
+  editLabel: { color: colors.textMuted, fontSize: 11, textTransform: 'uppercase', marginBottom: 4 },
+  textField: {
+    color: colors.text, fontSize: 15, paddingVertical: 8, paddingHorizontal: 10,
+    borderRadius: radius.sm, backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border,
+  },
+  fieldRow: { flexDirection: 'row', gap: spacing.sm },
+  fieldCol: { flex: 1 },
+  baseRow: { flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.xs },
+  baseChip: {
+    paddingVertical: 6, paddingHorizontal: spacing.md, borderRadius: radius.md,
+    backgroundColor: colors.surfaceAlt, borderWidth: 1, borderColor: colors.border,
+  },
+  baseChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  baseChipText: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
+  baseChipTextActive: { color: colors.bg },
+  macroInputsRow: { flexDirection: 'row', gap: spacing.xs },
+  macroInputCol: { flex: 1, alignItems: 'center' },
+  macroInput: {
+    width: '100%', textAlign: 'center', color: colors.text, fontSize: 14, fontWeight: '700',
+    paddingVertical: 6, borderRadius: radius.sm, backgroundColor: colors.surfaceAlt,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  macroInputLabel: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
+  totalRow: { paddingTop: spacing.xs },
+  totalText: { color: colors.primary, fontSize: 14, fontWeight: '800' },
+  errorTitle: { color: colors.danger, fontSize: 14, fontWeight: '700' },
+  guiaList: { gap: 2, marginTop: spacing.xs },
+  guiaItem: { color: colors.textMuted, fontSize: 13 },
+  encuadreHint: { color: colors.textMuted, fontSize: 13, textAlign: 'center' },
 });
