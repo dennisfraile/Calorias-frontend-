@@ -491,6 +491,8 @@ function EtiquetaEditor({
   const n = parseFloat(porciones.replace(',', '.'));
   const total = totalEtiqueta(borrador, Number.isFinite(n) ? n : 0);
 
+  const unidadBase = /^ml$/i.test(borrador.unidadPorcion.trim()) ? 'mL' : 'g';
+
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>Datos de la etiqueta</Text>
@@ -536,7 +538,7 @@ function EtiquetaEditor({
               style={({ pressed }) => [styles.baseChip, borrador.base === b && styles.baseChipActive, pressed && styles.pressed]}
             >
               <Text style={[styles.baseChipText, borrador.base === b && styles.baseChipTextActive]}>
-                {b === 'porcion' ? 'por porción' : 'por 100 g'}
+                {b === 'porcion' ? 'por porción' : `por 100 ${unidadBase}`}
               </Text>
             </Pressable>
           ))}
@@ -621,7 +623,6 @@ const makeStyles = (colors: Palette) => StyleSheet.create({
   modoChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   modoChipText: { color: colors.textMuted, fontSize: 14, fontWeight: '700' },
   modoChipTextActive: { color: colors.bg },
-  metaLineEtq: { color: colors.textMuted, fontSize: 13 },
   porcionesRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },
   porcionesLabel: { color: colors.text, fontSize: 14, fontWeight: '600' },
   porcionesInput: {
